@@ -1,0 +1,25 @@
+{
+  "name": "larvitfiles",
+  "version": "1.0.0",
+  "description": "Storage of files with an API and database to use in web environments",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/larvit/larvitfiles.git"
+  },
+  "keywords": [
+    "files"
+  ],
+  "author": "lillem4n <lilleman@larvit.se>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/larvit/larvitfiles/issues"
+  },
+  "homepage": "https://github.com/larvit/larvitfiles#readme",
+  "dependencies": {
+    "larvitdb": "^1.2.2"
+  }
+}
