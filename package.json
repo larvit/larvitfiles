@@ -20,6 +20,5 @@
   },
   "homepage": "https://github.com/larvit/larvitfiles#readme",
   "dependencies": {
-    "larvitdb": "^1.2.2"
   }
 }
