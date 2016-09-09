@@ -1,4 +1,0 @@
-{
-	"backend-filedata": "fs or mariadb or sqlite - right now only support for mariadb/mysql",
-	"backend-metadata": "fs or mariadb or sqlite - right now only support for mariadb/mysql"
-}
