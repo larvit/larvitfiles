@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/larvit/larvitfiles.svg)](https://travis-ci.org/larvit/larvitfiles) [![Dependencies](https://david-dm.org/larvit/larvitfiles.svg)](https://david-dm.org/larvit/larvitfiles.svg)
+
 # larvitfiles
 
 ## Installation
