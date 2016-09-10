@@ -13,7 +13,7 @@ npm i larvitfiles;
 ### Add file from buffer
 
 ```javascript
-const	lFiles	= require('larvitfiles')({'backend':'larvitdb'}),
+const	lFiles	= require('larvitfiles'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
@@ -45,7 +45,7 @@ fs.readFile('/some/file.txt', function(err, data) {
 ### Get file from storage
 
 ```javascript
-const	lFiles	= require('larvitfiles')({'backend':'larvitdb'}),
+const	lFiles	= require('larvitfiles'),
 	db	= require('larvitdb');
 
 let file;
@@ -59,5 +59,23 @@ file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
 	console.log('metadata: ' + JSON.stringify(file.metadata));
 	console.log('slug: ' + file.slug);
 	// file data in file.data
+});
+```
+
+### List files in storage
+
+```javascript
+const	lFiles	= require('larvitfiles'),
+	db	= require('larvitdb');
+
+let files;
+
+db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
+
+files = new lFiles.Files();
+files.get(function(err, result) {
+	if (err) throw err;
+
+	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
 });
 ```

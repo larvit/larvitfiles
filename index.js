@@ -10,32 +10,6 @@ const	dbMigration	= require('larvitdbmigration')({'tableName': 'larvitfiles_db_v
 let	dbReady	= false,
 	readyRunning	= false;
 
-// Checks if database is done migrating
-function ready(cb) {
-	if (readyRunning === true) {
-		setTimeout(function() {
-			ready(cb);
-		}, 10);
-	}
-
-	if (dbReady === true) {
-		cb();
-		return;
-	}
-
-	readyRunning = true;
-
-	dbMigration(function(err) {
-		if ( ! err) {
-			dbReady = true;
-		}
-
-		readyRunning = false;
-
-		cb(err);
-	});
-}
-
 function File(options, cb) {
 	const	tasks	= [],
 		that	= this;
@@ -234,6 +208,87 @@ File.prototype.save = function save(cb) {
 	async.series(tasks, cb);
 };
 
+function Files() {
+
+}
+
+Files.prototype.get = function get(cb) {
+	const	dbFiles	= {},
+		tasks	= [];
+
+	tasks.push(ready);
+
+	tasks.push(function(cb) {
+		db.query('SELECT uuid, slug FROM larvitfiles_files', function(err, rows) {
+			if (err) { cb(err); return; }
+
+			for (let i = 0; rows[i] !== undefined; i ++) {
+				const	fileUuid	= utils.formatUuid(rows[i].uuid);
+
+				dbFiles[fileUuid] = {
+					'uuid':	fileUuid,
+					'slug':	rows[i].slug,
+					'metadata':	{}
+				};
+			}
+
+			cb();
+		});
+	});
+
+	tasks.push(function(cb) {
+		db.query('SELECT * FROM larvitfiles_files_metadata', function(err, rows) {
+			if (err) { cb(err); return; }
+
+			for (let i = 0; rows[i] !== undefined; i ++) {
+				const	fileUuid	= utils.formatUuid(rows[i].fileUuid),
+					row	= rows[i];
+
+				if (dbFiles[fileUuid].metadata[row.name] === undefined) {
+					dbFiles[fileUuid].metadata[row.name] = [];
+				}
+
+				dbFiles[fileUuid].metadata[row.name].push(row.value);
+			}
+
+			cb();
+		});
+	});
+
+	async.series(tasks, function(err) {
+		if (err) { cb(err); return; }
+
+		cb(null, dbFiles);
+	});
+};
+
+// Checks if database is done migrating
+function ready(cb) {
+	if (readyRunning === true) {
+		setTimeout(function() {
+			ready(cb);
+		}, 10);
+	}
+
+	if (dbReady === true) {
+		cb();
+		return;
+	}
+
+	readyRunning = true;
+
+	dbMigration(function(err) {
+		if ( ! err) {
+			dbReady = true;
+		}
+
+		readyRunning = false;
+
+		cb(err);
+	});
+}
+
+
 function getFileUuidBySlug(slug, cb) {
 	ready(function(err) {
 		if (err) { cb(err); return; }
@@ -252,5 +307,6 @@ function getFileUuidBySlug(slug, cb) {
 }
 
 exports.File	= File;
+exports.Files	= Files;
 exports.getFileUuidBySlug	= getFileUuidBySlug;
 exports.ready	= ready;

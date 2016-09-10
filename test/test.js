@@ -134,6 +134,49 @@ describe('Files', function() {
 			});
 		});
 	});
+
+	it('Write another to db', function(done) {
+		const file = new lFiles.File({
+			'slug':	'boll.txt',
+			'data':	new Buffer('buhu'),
+			'metadata':	{'metadata1': 'metavalue2', 'other': 'value'}
+		}, function(err) {
+			if (err) throw err;
+
+			file.save(function(err) {
+				if (err) throw err;
+
+				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
+				assert.deepEqual(file.metadata.metadata1,	['metavalue2']);
+				assert.deepEqual(file.metadata.other,	['value']);
+				assert.deepEqual(Object.keys(file.metadata).length,	2);
+				assert.deepEqual(file.slug,	'boll.txt');
+				assert.deepEqual(file.data,	new Buffer('buhu'));
+
+				done();
+			});
+		});
+	});
+
+	it('List all files in storage', function(done) {
+		const	files	= new lFiles.Files();
+
+		files.get(function(err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	2);
+
+			for (const fileUuid of Object.keys(result)) {
+				assert.deepEqual(fileUuid,	utils.formatUuid(fileUuid));
+				assert.deepEqual(result[fileUuid].uuid,	utils.formatUuid(result[fileUuid].uuid));
+				assert.deepEqual(Object.keys(result[fileUuid].metadata).length,	2);
+				assert.deepEqual(typeof result[fileUuid].slug,	'string');
+				assert.deepEqual(result[fileUuid].data,	undefined);
+			}
+
+			done();
+		});
+	});
 });
 
 after(function(done) {
