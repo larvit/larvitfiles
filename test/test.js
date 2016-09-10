@@ -1,9 +1,11 @@
 'use strict';
 
-const	lFiles	= require(__dirname + '/../index.js'),
+const	freeport	= require('freeport'),
+	lFiles	= require(__dirname + '/../index.js'),
 	assert	= require('assert'),
 	async	= require('async'),
 	utils	= require('larvitutils'),
+	http	= require('http'),
 	log	= require('winston'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
@@ -92,7 +94,7 @@ describe('Files', function() {
 			if (err) throw err;
 
 			file = new lFiles.File({
-				'slug':	'slug/foo/bar.txt',
+				'slug':	'/slug/foo/bar.txt',
 				'data':	data,
 				'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']}
 			}, function(err) {
@@ -105,7 +107,7 @@ describe('Files', function() {
 					assert.deepEqual(file.metadata.metadata1,	['metavalue1']);
 					assert.deepEqual(file.metadata.metadata2,	['multiple', 'values']);
 					assert.deepEqual(Object.keys(file.metadata).length,	2);
-					assert.deepEqual(file.slug,	'slug/foo/bar.txt');
+					assert.deepEqual(file.slug,	'/slug/foo/bar.txt');
 					assert.deepEqual(file.data,	data);
 
 					done();
@@ -120,14 +122,14 @@ describe('Files', function() {
 
 			if (err) throw err;
 
-			file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
+			file = new lFiles.File({'slug': '/slug/foo/bar.txt'}, function(err) {
 				if (err) throw err;
 
 				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
 				assert.deepEqual(file.metadata.metadata1,	['metavalue1']);
 				assert.deepEqual(file.metadata.metadata2,	['multiple', 'values']);
 				assert.deepEqual(Object.keys(file.metadata).length,	2);
-				assert.deepEqual(file.slug,	'slug/foo/bar.txt');
+				assert.deepEqual(file.slug,	'/slug/foo/bar.txt');
 				assert.deepEqual(file.data,	data);
 
 				done();
@@ -287,6 +289,59 @@ describe('Files', function() {
 
 			done();
 		});
+	});
+
+	it('Return octet stream on larvitbase controller', function(done) {
+		const	tasks	= [];
+
+		let	fileData,
+			port;
+
+		process.cwd(__dirname + '/..');
+
+		// Get free port
+		tasks.push(function(cb) {
+			freeport(function(err, tmpPort) {
+				port = tmpPort;
+				cb(err);
+			});
+		});
+
+		// Start server
+		tasks.push(function(cb) {
+			const lBase = require('larvitbase')({
+				'port': port,
+				'customRoutes': [{
+					'regex':	'^/',
+					'controllerName':	'getFile'
+				}]
+			});
+
+			lBase.on('serverListening', cb);
+		});
+
+		// Get file content
+		tasks.push(function(cb) {
+			fs.readFile(__dirname + '/dummyFile.txt', function(err, data) {
+				fileData = data;
+				cb(err);
+			});
+		});
+
+		// Make request to the server
+		tasks.push(function(cb) {
+			const req = http.request({'port': port, 'path': '/slug/foo/bar.txt'}, function(res) {
+				assert.deepEqual(res.statusCode, 200);
+				res.on('data', function(chunk) {
+					assert.deepEqual(chunk, fileData);
+				});
+				res.on('end', cb);
+			});
+
+			req.end();
+		});
+
+		async.series(tasks, done);
 	});
 });
 
