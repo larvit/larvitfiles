@@ -64,6 +64,8 @@ file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
 
 ### List files in storage
 
+List all files
+
 ```javascript
 const	lFiles	= require('larvitfiles'),
 	db	= require('larvitdb');
@@ -73,6 +75,55 @@ let files;
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
 files = new lFiles.Files();
+files.get(function(err, result) {
+	if (err) throw err;
+
+	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
+});
+```
+
+Filter list based on metadata
+
+```javascript
+const	lFiles	= require('larvitfiles'),
+	db	= require('larvitdb');
+
+let files;
+
+db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
+
+files = new lFiles.Files();
+
+// This will only return files with metadata
+// 1) "foo" = "bar" (and possibly other values as well)
+// and
+// 2) "zoo" = anything
+files.filter.metadata.foo = 'bar';
+files.filter.metadata.zoo = true;
+files.get(function(err, result) {
+	if (err) throw err;
+
+	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
+});
+```
+
+And if several values should exist on a single metadata do this:
+
+```javascript
+const	lFiles	= require('larvitfiles'),
+	db	= require('larvitdb');
+
+let files;
+
+db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
+
+files = new lFiles.Files();
+
+// This will only return files with metadata
+// 1) "foo" = "bar" (and possibly other values as well)
+// and
+// 2) "foo" = "baz" (and possibly other values as well)
+files.filter.metadata.foo = ['bar', 'baz'];
 files.get(function(err, result) {
 	if (err) throw err;
 

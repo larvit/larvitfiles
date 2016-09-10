@@ -177,6 +177,117 @@ describe('Files', function() {
 			done();
 		});
 	});
+
+	it('Write yet another to db', function(done) {
+		const file = new lFiles.File({
+			'slug':	'fippel.txt',
+			'data':	new Buffer('ðđªßð'),
+			'metadata':	{'foo': ['bar', 'baz', 'buu'], 'other': ['value', 'andThis']}
+		}, function(err) {
+			if (err) throw err;
+
+			file.save(function(err) {
+				if (err) throw err;
+
+				done();
+			});
+		});
+	});
+
+	it('List files in storage filtered by exact metadata', function(done) {
+		const	files	= new lFiles.Files();
+
+		files.filter.metadata.metadata1 = 'metavalue2';
+
+		files.get(function(err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	1);
+
+			for (const fileUuid of Object.keys(result)) {
+				assert.deepEqual(result[fileUuid].uuid,	utils.formatUuid(result[fileUuid].uuid));
+				assert.deepEqual(result[fileUuid].metadata.metadata1,	['metavalue2']);
+				assert.deepEqual(result[fileUuid].metadata.other,	['value']);
+				assert.deepEqual(Object.keys(result[fileUuid].metadata).length,	2);
+				assert.deepEqual(result[fileUuid].slug,	'boll.txt');
+				assert.deepEqual(result[fileUuid].data,	undefined);
+			}
+
+			done();
+		});
+	});
+
+	it('List files in storage filtered by exact metadata, multiple metadata', function(done) {
+		const	files	= new lFiles.Files();
+
+		files.filter.metadata.other	= 'value';
+		files.filter.metadata.metadata1	= 'metavalue2';
+
+		files.get(function(err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	1);
+
+			done();
+		});
+	});
+
+	it('List files in storage filtered by exact metadata, multiple matches', function(done) {
+		const	files	= new lFiles.Files();
+
+		files.filter.metadata.other = 'value';
+
+		files.get(function(err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	2);
+
+			done();
+		});
+	});
+
+	it('List files in storage filtered by existing metadata key', function(done) {
+		const	files	= new lFiles.Files();
+
+		files.filter.metadata.metadata1 = true;
+
+		files.get(function(err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	2);
+
+			done();
+		});
+	});
+
+	it('List files in storage filtered by existing metadata key in combination with exact metadata', function(done) {
+		const	files	= new lFiles.Files();
+
+		files.filter.metadata.metadata1	= true;
+		files.filter.metadata.other	= 'value';
+
+		files.get(function(err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	1);
+
+			done();
+		});
+	});
+
+	it('List files in storage filtered by two metadata values in combination', function(done) {
+		const	files	= new lFiles.Files();
+
+		files.filter.metadata.other	= ['value', 'andThis'];
+
+		files.get(function(err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	1);
+
+			done();
+		});
+	});
 });
 
 after(function(done) {

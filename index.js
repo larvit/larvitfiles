@@ -209,17 +209,51 @@ File.prototype.save = function save(cb) {
 };
 
 function Files() {
-
+	this.filter = {
+		'metadata': {}
+	};
 }
 
 Files.prototype.get = function get(cb) {
 	const	dbFiles	= {},
-		tasks	= [];
+		tasks	= [],
+		that	= this;
 
 	tasks.push(ready);
 
 	tasks.push(function(cb) {
-		db.query('SELECT uuid, slug FROM larvitfiles_files', function(err, rows) {
+		const	dbFields	= [];
+
+		let sql = 'SELECT uuid, slug FROM larvitfiles_files WHERE 1';
+
+		if (Object.keys(that.filter.metadata).length !== 0) {
+			for (const name of Object.keys(that.filter.metadata)) {
+				let values = that.filter.metadata[name];
+
+				if ( ! (values instanceof Array)) {
+					values = [values];
+				}
+
+				for (let i = 0; values[i] !== undefined; i ++) {
+					const value = values[i];
+
+					sql += ' AND uuid IN (SELECT DISTINCT fileUuid FROM larvitfiles_files_metadata WHERE ';
+
+					if (value === true) {
+						sql += 'name = ?';
+						dbFields.push(name);
+					} else {
+						sql += 'name = ? AND value = ?';
+						dbFields.push(name);
+						dbFields.push(value);
+					}
+
+					sql += ')';
+				}
+			}
+		}
+
+		db.query(sql, dbFields, function(err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -237,7 +271,38 @@ Files.prototype.get = function get(cb) {
 	});
 
 	tasks.push(function(cb) {
-		db.query('SELECT * FROM larvitfiles_files_metadata', function(err, rows) {
+		const	dbFields	= [];
+
+		let sql = 'SELECT * FROM larvitfiles_files_metadata WHERE 1';
+
+		if (Object.keys(that.filter.metadata).length !== 0) {
+			for (const name of Object.keys(that.filter.metadata)) {
+				let values = that.filter.metadata[name];
+
+				if ( ! (values instanceof Array)) {
+					values = [values];
+				}
+
+				for (let i = 0; values[i] !== undefined; i ++) {
+					const value = values[i];
+
+					sql += ' AND fileUuid IN (SELECT DISTINCT fileUuid FROM larvitfiles_files_metadata WHERE ';
+
+					if (value === true) {
+						sql += 'name = ?';
+						dbFields.push(name);
+					} else {
+						sql += 'name = ? AND value = ?';
+						dbFields.push(name);
+						dbFields.push(value);
+					}
+
+					sql += ')';
+				}
+			}
+		}
+
+		db.query(sql, dbFields, function(err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
