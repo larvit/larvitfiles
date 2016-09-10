@@ -343,6 +343,32 @@ describe('Files', function() {
 
 		async.series(tasks, done);
 	});
+
+	it('should remove a file from storage', function(done) {
+		const	tasks	= [];
+
+		tasks.push(function(cb) {
+			const file = new lFiles.File({'slug': '/slug/foo/bar.txt'}, function(err) {
+				if (err) throw err;
+
+				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
+
+				file.rm(cb);
+			});
+		});
+
+		tasks.push(function(cb) {
+			const file = new lFiles.File({'slug': '/slug/foo/bar.txt'}, function(err) {
+				if (err) throw err;
+
+				assert.deepEqual(file.uuid,	undefined);
+
+				cb();
+			});
+		});
+
+		async.series(tasks, done);
+	});
 });
 
 after(function(done) {

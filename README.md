@@ -62,6 +62,27 @@ file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
 });
 ```
 
+### Remove a file from storage
+
+```javascript
+const	lFiles	= require('larvitfiles'),
+	db	= require('larvitdb');
+
+let file;
+
+db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
+
+file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
+	if (err) throw err;
+
+	file.rm(function(err) {
+		if (err) throw err;
+
+		console.log('File is now removed from storage');
+	});
+});
+```
+
 ### List files in storage
 
 List all files

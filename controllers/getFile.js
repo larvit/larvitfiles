@@ -1,3 +1,6 @@
+/**
+ * Example controller for feeding data to a client
+ */
 'use strict';
 
 const	lfs	= require('larvitfs'),

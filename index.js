@@ -132,6 +132,36 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	async.series(tasks, cb);
 };
 
+File.prototype.rm = function rm(cb) {
+	const	tasks	= [],
+		that	= this;
+
+	if (that.uuid === undefined) {
+		const err = new Error('No uuid set, can not remove file');
+		log.warn('larvitfiles: File() - rm () - ' + err.message);
+		cb(err);
+		return;
+	}
+
+	tasks.push(function(cb) {
+		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', [utils.uuidToBuffer(that.uuid)], cb);
+	});
+
+	tasks.push(function(cb) {
+		db.query('DELETE FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], cb);
+	});
+
+	tasks.push(function(cb) {
+		delete that.uuid;
+		delete that.slug;
+		delete that.data;
+		that.metadata = {};
+		cb();
+	});
+
+	async.series(tasks, cb);
+};
+
 File.prototype.save = function save(cb) {
 	const	tasks	= [],
 		that	= this;
