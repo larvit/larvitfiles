@@ -1,6 +1,6 @@
 'use strict';
 
-const	dbMigration	= require('larvitdbmigration')({'tableName': 'larvitfiles_db_version'}),
+const	dbMigration	= require('larvitdbmigration')({'tableName': 'larvitfiles_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
 	uuidLib	= require('uuid'),
 	utils	= require('larvitutils'),
 	async	= require('async'),
@@ -382,7 +382,6 @@ function ready(cb) {
 		cb(err);
 	});
 }
-
 
 function getFileUuidBySlug(slug, cb) {
 	ready(function(err) {
