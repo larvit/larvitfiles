@@ -12,6 +12,12 @@ const	freeport	= require('freeport'),
 
 // Set up winston
 log.remove(log.transports.Console);
+/** /log.add(log.transports.Console, {
+	'colorize':	true,
+	'timestamp':	true,
+	'json':	false,
+	'level':	'silly'
+});/**/
 
 before(function(done) {
 	const	tasks	= [];
@@ -59,9 +65,8 @@ before(function(done) {
 		});
 	});
 
-	// CHeck for empty db
+	// Check for empty db
 	tasks.push(function(cb) {
-		// Check for empty db
 		db.query('SHOW TABLES', function(err, rows) {
 			if (err) {
 				assert( ! err, 'err should be negative');
