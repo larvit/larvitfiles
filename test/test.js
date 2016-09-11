@@ -374,6 +374,106 @@ describe('Files', function() {
 
 		async.series(tasks, done);
 	});
+
+	it('should rename a slug on an existing file', function(done) {
+		const	tasks	= [];
+
+		let	fileUuid,
+			file;
+
+		tasks.push(function(cb) {
+			file = new lFiles.File({'slug': 'boll.txt'}, function(err) {
+				if (err) throw err;
+
+				fileUuid = file.uuid;
+
+				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
+				assert.deepEqual(file.metadata.metadata1,	['metavalue2']);
+				assert.deepEqual(file.metadata.other,	['value']);
+				assert.deepEqual(Object.keys(file.metadata).length,	2);
+				assert.deepEqual(file.slug,	'boll.txt');
+				assert.deepEqual(file.data,	new Buffer('buhu'));
+
+				cb();
+			});
+		});
+
+		tasks.push(function(cb) {
+			file.slug = 'somethingNewAndShiny.txt';
+
+			file.save(function(err) {
+				if (err) throw err;
+
+				file.slug = 'somethingNewAndShiny.txt';
+
+				cb();
+			});
+		});
+
+		tasks.push(function(cb) {
+			const testFile = new lFiles.File({'uuid': fileUuid}, function(err) {
+				if (err) throw err;
+
+				assert.deepEqual(testFile.uuid,	utils.formatUuid(testFile.uuid));
+				assert.deepEqual(testFile.metadata.metadata1,	['metavalue2']);
+				assert.deepEqual(testFile.metadata.other,	['value']);
+				assert.deepEqual(Object.keys(testFile.metadata).length,	2);
+				assert.deepEqual(testFile.slug,	'somethingNewAndShiny.txt');
+				assert.deepEqual(testFile.data,	new Buffer('buhu'));
+
+				cb();
+			});
+		});
+
+		async.series(tasks, done);
+	});
+
+	it('should fail on renaming if slug exists', function(done) {
+		const	tasks	= [];
+
+		let	fileUuid,
+			file;
+
+		tasks.push(function(cb) {
+			file = new lFiles.File({'slug': 'somethingNewAndShiny.txt'}, function(err) {
+				if (err) throw err;
+
+				fileUuid = file.uuid;
+
+				cb();
+			});
+		});
+
+		tasks.push(function(cb) {
+			file.slug = 'fippel.txt';
+
+			file.save(function(err) {
+				assert(err instanceof Error, 'Error should be set!');
+
+				// Not written to storage, but should still be the new value
+				assert.deepEqual(file.slug, 'fippel.txt');
+
+				cb();
+			});
+		});
+
+		tasks.push(function(cb) {
+			const testFile = new lFiles.File({'uuid': fileUuid}, function(err) {
+				if (err) throw err;
+
+				assert.deepEqual(testFile.uuid,	utils.formatUuid(testFile.uuid));
+				assert.deepEqual(testFile.metadata.metadata1,	['metavalue2']);
+				assert.deepEqual(testFile.metadata.other,	['value']);
+				assert.deepEqual(Object.keys(testFile.metadata).length,	2);
+				assert.deepEqual(testFile.slug,	'somethingNewAndShiny.txt');
+				assert.deepEqual(testFile.data,	new Buffer('buhu'));
+
+				cb();
+			});
+		});
+
+		async.series(tasks, done);
+	});
 });
 
 after(function(done) {

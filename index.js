@@ -177,7 +177,10 @@ File.prototype.save = function save(cb) {
 		getFileUuidBySlug(that.slug, function(err, result) {
 			if (err) { cb(err); return; }
 
-			if (result !== that.uuid && that.uuid !== undefined) {
+			if (
+					(result !== false	&& result	!== that.uuid)
+				||	(result !== false	&& that.uuid	=== undefined)
+			) {
 				const err = new Error('Slug "' + that.slug + '" is take by another file');
 				log.warn('larvitfiles: File() - save() - ' + err.message);
 				cb(err);
@@ -197,7 +200,10 @@ File.prototype.save = function save(cb) {
 	});
 
 	tasks.push(function(cb) {
-		db.query('REPLACE INTO larvitfiles_files VALUES(?,?,?);', [utils.uuidToBuffer(that.uuid), that.slug, that.data], cb);
+		const	dbFields	= [utils.uuidToBuffer(that.uuid), that.slug, that.data, that.slug, that.data],
+			sql	= 'INSERT INTO larvitfiles_files VALUES(?,?,?) ON DUPLICATE KEY UPDATE slug = ?, data = ?;';
+
+		db.query(sql, dbFields, cb);
 	});
 
 	tasks.push(function(cb) {
@@ -383,6 +389,12 @@ function ready(cb) {
 	});
 }
 
+/**
+ * Get file Uuid by slug
+ *
+ * @param str slug
+ * @param func cb(err, uuid) - uuid being a formatted string or boolean false
+ */
 function getFileUuidBySlug(slug, cb) {
 	ready(function(err) {
 		if (err) { cb(err); return; }
