@@ -1,0 +1,41 @@
+<%= _.render('inc/head', obj) %>
+<%= _.render('inc/pageTop', obj) %>
+<form method="post" enctype="multipart/form-data">
+	<div class="row">
+		<div class="six columns">
+			<label for="uuid">Uuid</label>
+			<input class="u-full-width" type="text" name="uuid" readonly="readonly" value="<%= obj.global.urlParsed.query.uuid %>" />
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="six columns">
+			<label for="slug">Slug (file path, including leading slash)</label>
+			<input class="u-full-width" type="text" name="slug" value="<%= obj.global.formFields.slug %>" />
+		</div>
+
+		<div class="six columns">
+			<label for="fileData">File:</label>
+			<input type="file" name="fileData" />
+		</div>
+	</div>
+
+	<h2>Metadata</h2>
+	<div class="row">
+		<div class="six columns">
+			<label for="metaDataName[]">Metadata name</label>
+			<input class="u-full-width" type="text" name="metaDataName[]" value="" />
+		</div>
+
+		<div class="six columns">
+			<label for="metaDataValue[]">Metadata value</label>
+			<input class="u-full-width" type="text" name="metaDataValue[]" value="" />
+		</div>
+	</div>
+
+	<button type="submit" name="save">Save</button>
+	<% if (global.urlParsed.query.uuid) { %>
+		<button type="submit" name="delete" class="button left warning" value="true">Delete file</button>
+	<% } %>
+</form>
+<%= _.render('inc/pageBottom', obj) %>

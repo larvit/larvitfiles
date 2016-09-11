@@ -5,15 +5,13 @@
 		<tr>
 			<th>Uuid</th>
 			<th>Slug</th>
-			<th>Delete</th>
 		</tr>
 	</thead>
 	<tbody>
 	<% _.forEach(obj.files, function(file) { %>
 		<tr>
-			<td><%= file.uuid.substring(0, 8) %></a></td>
+			<td><a href="/adminFileEdit?uuid=<%= file.uuid %>"><%= file.uuid.substring(0, 8) %></a></td>
 			<td><%= file.slug %></td>
-			<td><a href="#">Delete</a></td>
 		</tr>
 	<% }); %>
 	</tbody>

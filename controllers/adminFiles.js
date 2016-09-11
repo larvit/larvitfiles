@@ -6,7 +6,7 @@ exports.run = function(req, res, cb) {
 	const	files	= new lFiles.Files(),
 		data	= {'global': res.globalData};
 
-	data.global.menuControllerName = 'files';
+	data.global.menuControllerName = 'adminFiles';
 
 	files.get(function(err, result) {
 		data.files = result;
