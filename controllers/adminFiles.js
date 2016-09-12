@@ -1,10 +1,12 @@
 'use strict';
 
-const	lFiles	= require(__dirname + '/../index.js');
+const	lFiles	= require(__dirname + '/../index.js'),
+	lfs	= require('larvitfs'),
+	conf	= require(lfs.getPathSync('config/larvitfiles.json'));
 
 exports.run = function(req, res, cb) {
 	const	files	= new lFiles.Files(),
-		data	= {'global': res.globalData};
+		data	= {'global': res.globalData, 'conf': conf};
 
 	data.global.menuControllerName = 'adminFiles';
 

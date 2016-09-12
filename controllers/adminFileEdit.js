@@ -2,11 +2,13 @@
 
 const	lFiles	= require(__dirname + '/../index.js'),
 	async	= require('async'),
+	lfs	= require('larvitfs'),
+	conf	= require(lfs.getPathSync('config/larvitfiles.json')),
 	fs	= require('fs');
 
 exports.run = function(req, res, cb) {
 	const	tasks	= [],
-		data	= {'global': res.globalData};
+		data	= {'global': res.globalData, 'conf': conf};
 
 	let file;
 

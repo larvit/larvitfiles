@@ -5,6 +5,7 @@ const	freeport	= require('freeport'),
 	assert	= require('assert'),
 	async	= require('async'),
 	utils	= require('larvitutils'),
+	conf	= require(__dirname + '/../config/larvitfiles.json'),
 	http	= require('http'),
 	log	= require('winston'),
 	db	= require('larvitdb'),
@@ -18,6 +19,9 @@ log.remove(log.transports.Console);
 	'json':	false,
 	'level':	'silly'
 });/**/
+
+// Chmod to module path
+process.cwd(__dirname + '/..');
 
 before(function(done) {
 	const	tasks	= [];
@@ -99,7 +103,7 @@ describe('Files', function() {
 			if (err) throw err;
 
 			file = new lFiles.File({
-				'slug':	'/slug/foo/bar.txt',
+				'slug':	'slug/foo/bar.txt',
 				'data':	data,
 				'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']}
 			}, function(err) {
@@ -112,7 +116,7 @@ describe('Files', function() {
 					assert.deepEqual(file.metadata.metadata1,	['metavalue1']);
 					assert.deepEqual(file.metadata.metadata2,	['multiple', 'values']);
 					assert.deepEqual(Object.keys(file.metadata).length,	2);
-					assert.deepEqual(file.slug,	'/slug/foo/bar.txt');
+					assert.deepEqual(file.slug,	'slug/foo/bar.txt');
 					assert.deepEqual(file.data,	data);
 
 					done();
@@ -127,14 +131,14 @@ describe('Files', function() {
 
 			if (err) throw err;
 
-			file = new lFiles.File({'slug': '/slug/foo/bar.txt'}, function(err) {
+			file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
 				if (err) throw err;
 
 				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
 				assert.deepEqual(file.metadata.metadata1,	['metavalue1']);
 				assert.deepEqual(file.metadata.metadata2,	['multiple', 'values']);
 				assert.deepEqual(Object.keys(file.metadata).length,	2);
-				assert.deepEqual(file.slug,	'/slug/foo/bar.txt');
+				assert.deepEqual(file.slug,	'slug/foo/bar.txt');
 				assert.deepEqual(file.data,	data);
 
 				done();
@@ -317,7 +321,7 @@ describe('Files', function() {
 			const lBase = require('larvitbase')({
 				'port': port,
 				'customRoutes': [{
-					'regex':	'^/',
+					'regex':	'^' + conf.prefix,
 					'controllerName':	'getFile'
 				}]
 			});
@@ -335,7 +339,7 @@ describe('Files', function() {
 
 		// Make request to the server
 		tasks.push(function(cb) {
-			const req = http.request({'port': port, 'path': '/slug/foo/bar.txt'}, function(res) {
+			const req = http.request({'port': port, 'path': conf.prefix + 'slug/foo/bar.txt'}, function(res) {
 				assert.deepEqual(res.statusCode, 200);
 				res.on('data', function(chunk) {
 					assert.deepEqual(chunk, fileData);
@@ -353,7 +357,7 @@ describe('Files', function() {
 		const	tasks	= [];
 
 		tasks.push(function(cb) {
-			const file = new lFiles.File({'slug': '/slug/foo/bar.txt'}, function(err) {
+			const file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
 				if (err) throw err;
 
 				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
@@ -363,7 +367,7 @@ describe('Files', function() {
 		});
 
 		tasks.push(function(cb) {
-			const file = new lFiles.File({'slug': '/slug/foo/bar.txt'}, function(err) {
+			const file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
 				if (err) throw err;
 
 				assert.deepEqual(file.uuid,	undefined);

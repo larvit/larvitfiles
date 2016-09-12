@@ -11,7 +11,7 @@
 	<% _.forEach(obj.files, function(file) { %>
 		<tr>
 			<td><a href="/adminFileEdit?uuid=<%= file.uuid %>"><%= file.uuid.substring(0, 8) %></a></td>
-			<td><%= file.slug %></td>
+			<td><a href="<%= obj.conf.prefix %><%= file.slug %>"><%= file.slug %></a></td>
 		</tr>
 	<% }); %>
 	</tbody>
