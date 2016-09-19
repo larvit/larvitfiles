@@ -30,7 +30,7 @@ function File(options, cb) {
 
 	tasks.push(ready);
 
-	if (options.slug) {
+	if (options.slug !== undefined && options.slug !== '') {
 		tasks.push(function(cb) {
 			db.query('SELECT uuid, slug FROM larvitfiles_files WHERE slug = ?', [options.slug], function(err, rows) {
 				if (err) { cb(err); return; }

@@ -41,14 +41,28 @@ exports.run = function(req, res, cb) {
 			}
 		}
 
+		// Check so slug is not an empty string
+		tasks.push(function(cb) {
+			if (newFileData.slug === '') {
+				data.global.errors.push('Slug can not be empty');
+			}
+
+			cb();
+		});
+
 		// Check so slug is not taken
 		tasks.push(function(cb) {
+			if (data.global.errors.length !== 0) {
+				cb();
+				return;
+			}
+
 			if ((file !== undefined && file.slug !== newFileData.slug) || file === undefined) {
 				lFiles.getFileUuidBySlug(newFileData.slug, function(err, result) {
 					if (err) { cb(err); return; }
 
 					if ((result !== false && file !== undefined && file.uuid !== result) || (file === undefined && result !== false)) {
-						data.global.errors = ['Slug already taken'];
+						data.global.errors.push('Slug already taken');
 					}
 
 					cb();
@@ -74,6 +88,11 @@ exports.run = function(req, res, cb) {
 		}
 
 		tasks.push(function(cb) {
+			if (data.global.errors.length !== 0) {
+				cb();
+				return;
+			}
+
 			if (file === undefined) {
 				file = new lFiles.File(newFileData, cb);
 				return;
