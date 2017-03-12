@@ -6,7 +6,7 @@ const	lFiles	= require(__dirname + '/../index.js'),
 	conf	= require(lfs.getPathSync('config/larvitfiles.json')),
 	fs	= require('fs');
 
-exports.run = function(req, res, cb) {
+exports.run = function (req, res, cb) {
 	const	tasks	= [],
 		data	= {'global': res.globalData, 'conf': conf};
 
@@ -16,7 +16,7 @@ exports.run = function(req, res, cb) {
 	data.global.errors	= [];
 
 	if (data.global.urlParsed.query.uuid !== undefined) {
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			file = new lFiles.File({'uuid': data.global.urlParsed.query.uuid}, cb);
 		});
 	}
@@ -42,7 +42,7 @@ exports.run = function(req, res, cb) {
 		}
 
 		// Check so slug is not an empty string
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			if (newFileData.slug === '') {
 				data.global.errors.push('Slug can not be empty');
 			}
@@ -51,14 +51,14 @@ exports.run = function(req, res, cb) {
 		});
 
 		// Check so slug is not taken
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			if (data.global.errors.length !== 0) {
 				cb();
 				return;
 			}
 
 			if ((file !== undefined && file.slug !== newFileData.slug) || file === undefined) {
-				lFiles.getFileUuidBySlug(newFileData.slug, function(err, result) {
+				lFiles.getFileUuidBySlug(newFileData.slug, function (err, result) {
 					if (err) { cb(err); return; }
 
 					if ((result !== false && file !== undefined && file.uuid !== result) || (file === undefined && result !== false)) {
@@ -74,20 +74,20 @@ exports.run = function(req, res, cb) {
 
 		// Set file data
 		if (req.formFiles !== undefined && req.formFiles.fileData !== undefined && req.formFiles.fileData.size) {
-			tasks.push(function(cb) {
-				fs.readFile(req.formFiles.fileData.path, function(err, fileData) {
+			tasks.push(function (cb) {
+				fs.readFile(req.formFiles.fileData.path, function (err, fileData) {
 					newFileData.data = fileData;
 
 					cb(err);
 				});
 			});
 
-			tasks.push(function(cb) {
+			tasks.push(function (cb) {
 				fs.unlink(req.formFiles.fileData.path, cb);
 			});
 		}
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			if (data.global.errors.length !== 0) {
 				cb();
 				return;
@@ -108,7 +108,7 @@ exports.run = function(req, res, cb) {
 			cb();
 		});
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			if (data.global.errors.length !== 0) {
 				cb();
 				return;
@@ -117,7 +117,7 @@ exports.run = function(req, res, cb) {
 			file.save(cb);
 		});
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			if (data.global.errors.length !== 0) {
 				// Do nothing
 			} else if (file.uuid !== undefined && data.global.urlParsed.query.uuid === undefined) {
@@ -132,13 +132,13 @@ exports.run = function(req, res, cb) {
 	}
 
 	if (data.global.formFields.delete !== undefined) {
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			if (file === undefined) {
 				cb();
 				return;
 			}
 
-			file.rm(function(err) {
+			file.rm(function (err) {
 				if (err) { cb(err); return; }
 
 				req.session.data.nextCallData	= {'global': {'messages': ['Movie deleted']}};
@@ -150,7 +150,7 @@ exports.run = function(req, res, cb) {
 	}
 
 	// Load saved data to formfields
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		if (file === undefined) {
 			cb();
 			return;
@@ -170,7 +170,7 @@ exports.run = function(req, res, cb) {
 		cb();
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		cb(err, req, res, data);
 	});
 };

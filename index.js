@@ -1,6 +1,6 @@
 'use strict';
 
-const	dbMigration	= require('larvitdbmigration')({'tableName': 'larvitfiles_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
+const	DbMigration	= require('larvitdbmigration'),
 	uuidLib	= require('uuid'),
 	utils	= require('larvitutils'),
 	async	= require('async'),
@@ -22,7 +22,7 @@ function File(options, cb) {
 	}
 
 	if (cb === undefined) {
-		cb = function() {};
+		cb = function () {};
 	}
 
 	// There must always be a metadata object
@@ -31,8 +31,8 @@ function File(options, cb) {
 	tasks.push(ready);
 
 	if (options.slug !== undefined && options.slug !== '') {
-		tasks.push(function(cb) {
-			db.query('SELECT uuid, slug FROM larvitfiles_files WHERE slug = ?', [options.slug], function(err, rows) {
+		tasks.push(function (cb) {
+			db.query('SELECT uuid, slug FROM larvitfiles_files WHERE slug = ?', [options.slug], function (err, rows) {
 				if (err) { cb(err); return; }
 
 				if (rows.length === 0) {
@@ -61,7 +61,7 @@ function File(options, cb) {
 		return;
 	}
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		if (that.uuid === undefined) {
 			cb();
 			return;
@@ -70,7 +70,7 @@ function File(options, cb) {
 		that.loadFromDb(cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		if (options.slug)	{ that.slug	= options.slug;	}
 		if (options.data)	{ that.data	= options.data;	}
 		if (options.metadata)	{ that.metadata	= options.metadata;	}
@@ -87,8 +87,8 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 
 	tasks.push(ready);
 
-	tasks.push(function(cb) {
-		db.query('SELECT uuid, slug, data FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], function(err, rows) {
+	tasks.push(function (cb) {
+		db.query('SELECT uuid, slug, data FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
 			if (err) { cb(err); return; }
 
 			if (rows.length === 0) {
@@ -105,14 +105,14 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 		});
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		that.metadata = {};
 
 		if (that.uuid === undefined) {
 			cb();
 		}
 
-		db.query('SELECT name, value FROM larvitfiles_files_metadata WHERE fileUuid = ?', [utils.uuidToBuffer(that.uuid)], function(err, rows) {
+		db.query('SELECT name, value FROM larvitfiles_files_metadata WHERE fileUuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -143,15 +143,15 @@ File.prototype.rm = function rm(cb) {
 		return;
 	}
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', [utils.uuidToBuffer(that.uuid)], cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		db.query('DELETE FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		delete that.uuid;
 		delete that.slug;
 		delete that.data;
@@ -173,8 +173,8 @@ File.prototype.save = function save(cb) {
 		return;
 	}
 
-	tasks.push(function(cb) {
-		getFileUuidBySlug(that.slug, function(err, result) {
+	tasks.push(function (cb) {
+		getFileUuidBySlug(that.slug, function (err, result) {
 			if (err) { cb(err); return; }
 
 			if (
@@ -191,7 +191,7 @@ File.prototype.save = function save(cb) {
 		});
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		if (that.uuid === undefined) {
 			that.uuid = uuidLib.v4();
 		}
@@ -199,18 +199,18 @@ File.prototype.save = function save(cb) {
 		cb();
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [utils.uuidToBuffer(that.uuid), that.slug, that.data, that.slug, that.data],
 			sql	= 'INSERT INTO larvitfiles_files VALUES(?,?,?) ON DUPLICATE KEY UPDATE slug = ?, data = ?;';
 
 		db.query(sql, dbFields, cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', [utils.uuidToBuffer(that.uuid)], cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [];
 
 		let	sql = 'INSERT INTO larvitfiles_files_metadata VALUES';
@@ -237,7 +237,7 @@ File.prototype.save = function save(cb) {
 		db.query(sql, dbFields, cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		that.loadFromDb(cb);
 	});
 
@@ -257,7 +257,7 @@ Files.prototype.get = function get(cb) {
 
 	tasks.push(ready);
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [];
 
 		let sql = 'SELECT uuid, slug FROM larvitfiles_files WHERE 1';
@@ -289,7 +289,7 @@ Files.prototype.get = function get(cb) {
 			}
 		}
 
-		db.query(sql, dbFields, function(err, rows) {
+		db.query(sql, dbFields, function (err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -306,7 +306,7 @@ Files.prototype.get = function get(cb) {
 		});
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [];
 
 		let sql = 'SELECT * FROM larvitfiles_files_metadata WHERE 1';
@@ -338,7 +338,7 @@ Files.prototype.get = function get(cb) {
 			}
 		}
 
-		db.query(sql, dbFields, function(err, rows) {
+		db.query(sql, dbFields, function (err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -356,7 +356,7 @@ Files.prototype.get = function get(cb) {
 		});
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		if (err) { cb(err); return; }
 
 		cb(null, dbFiles);
@@ -365,20 +365,27 @@ Files.prototype.get = function get(cb) {
 
 // Checks if database is done migrating
 function ready(cb) {
+	const	options	= {};
+
+	let dbMigration;
+
 	if (readyRunning === true) {
-		setTimeout(function() {
+		setTimeout(function () {
 			ready(cb);
 		}, 10);
 	}
 
-	if (dbReady === true) {
-		cb();
-		return;
-	}
+	if (dbReady === true) return cb();
 
 	readyRunning = true;
 
-	dbMigration(function(err) {
+	options.dbType	= 'larvitdb';
+	options.dbDriver	= db;
+	options.tableName	= 'larvitfiles_db_version';
+	options.migrationScriptsPath	= __dirname + '/dbmigration';
+	dbMigration	= new DbMigration(options);
+
+	dbMigration.run(function (err) {
 		if ( ! err) {
 			dbReady = true;
 		}
@@ -396,10 +403,10 @@ function ready(cb) {
  * @param func cb(err, uuid) - uuid being a formatted string or boolean false
  */
 function getFileUuidBySlug(slug, cb) {
-	ready(function(err) {
+	ready(function (err) {
 		if (err) { cb(err); return; }
 
-		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug], function(err, rows) {
+		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug], function (err, rows) {
 			if (err) { cb(err); return; }
 
 			if (rows.length === 0) {

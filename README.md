@@ -19,7 +19,7 @@ const	lFiles	= require('larvitfiles'),
 
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
-fs.readFile('/some/file.txt', function(err, data) {
+fs.readFile('/some/file.txt', function (err, data) {
 	let file;
 
 	if (err) throw err;
@@ -28,10 +28,10 @@ fs.readFile('/some/file.txt', function(err, data) {
 		'slug':	'slug/foo/bar.txt',
 		'data':	data,
 		'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']}
-	}, function(err) {
+	}, function (err) {
 		if (err) throw err;
 
-		file.save(function(err) {
+		file.save(function (err) {
 			if (err) throw err;
 
 			console.log('file saved with uuid: ' + file.uuid);
@@ -52,7 +52,7 @@ let file;
 
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
-file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
+file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 	if (err) throw err;
 
 	console.log('file saved with uuid: ' + file.uuid);
@@ -72,10 +72,10 @@ let file;
 
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
-file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function(err) {
+file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 	if (err) throw err;
 
-	file.rm(function(err) {
+	file.rm(function (err) {
 		if (err) throw err;
 
 		console.log('File is now removed from storage');
@@ -96,7 +96,7 @@ let files;
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
 files = new lFiles.Files();
-files.get(function(err, result) {
+files.get(function (err, result) {
 	if (err) throw err;
 
 	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
@@ -121,7 +121,7 @@ files = new lFiles.Files();
 // 2) "zoo" = anything
 files.filter.metadata.foo = 'bar';
 files.filter.metadata.zoo = true;
-files.get(function(err, result) {
+files.get(function (err, result) {
 	if (err) throw err;
 
 	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
@@ -145,7 +145,7 @@ files = new lFiles.Files();
 // and
 // 2) "foo" = "baz" (and possibly other values as well)
 files.filter.metadata.foo = ['bar', 'baz'];
-files.get(function(err, result) {
+files.get(function (err, result) {
 	if (err) throw err;
 
 	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.

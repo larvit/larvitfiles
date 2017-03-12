@@ -8,10 +8,10 @@ const	lfs	= require('larvitfs'),
 	lFiles	= require(__dirname + '/../index.js'),
 	conf	= require(lfs.getPathSync('config/larvitfiles.json'));
 
-exports.run = function(req, res, cb) {
+exports.run = function (req, res, cb) {
 	const file = new lFiles.File({
 		'slug': req.urlParsed.pathname.substring(conf.prefix.length)
-	}, function(err) {
+	}, function (err) {
 		if (err) { cb(err, req, res, {}); return; }
 
 		if (file.uuid === undefined) {

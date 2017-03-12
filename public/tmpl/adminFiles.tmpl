@@ -8,7 +8,7 @@
 		</tr>
 	</thead>
 	<tbody>
-	<% _.forEach(obj.files, function(file) { %>
+	<% _.forEach(obj.files, function (file) { %>
 		<tr>
 			<td><a href="/adminFileEdit?uuid=<%= file.uuid %>"><%= file.uuid.substring(0, 8) %></a></td>
 			<td><a href="<%= obj.conf.prefix %><%= file.slug %>"><%= file.slug %></a></td>
