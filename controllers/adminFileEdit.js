@@ -114,8 +114,6 @@ exports.run = function (req, res, cb) {
 				return;
 			}
 
-			console.log(file);
-
 			file.save(cb);
 		});
 
