@@ -1,6 +1,7 @@
 'use strict';
 
 const	freeport	= require('freeport'),
+	Intercom	= require('larvitamintercom'),
 	lFiles	= require(__dirname + '/../index.js'),
 	assert	= require('assert'),
 	async	= require('async'),
@@ -11,88 +12,80 @@ const	freeport	= require('freeport'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
+lFiles.dataWriter = require(__dirname + '/../dataWriter.js');
+lFiles.dataWriter.mode = 'master';
+
 // Set up winston
 log.remove(log.transports.Console);
-/** /log.add(log.transports.Console, {
-	'colorize':	true,
-	'timestamp':	true,
-	'json':	false,
-	'level':	'silly'
-});/**/
 
-// Chmod to module path
-process.cwd(__dirname + '/..');
 
 before(function (done) {
 	const	tasks	= [];
 
-	// Setup database
+	this.timeout(10000);
+
+	// Run DB Setup
 	tasks.push(function (cb) {
-		let confFile;
+		let	confFile;
 
-		function runDbSetup(confFile) {
-			log.verbose('DB config: ' + JSON.stringify(require(confFile)));
-
-			db.setup(require(confFile), function (err) {
-				assert( ! err, 'err should be negative');
-
-				cb();
-			});
-		}
-
-		if (process.argv[3] === undefined) {
-			confFile = __dirname + '/../config/db_test.json';
+		if (process.env.DBCONFFILE === undefined) {
+			confFile	= __dirname + '/../config/db_test.json';
 		} else {
-			confFile = process.argv[3].split('=')[1];
+			confFile	= process.env.DBCONFFILE;
 		}
 
 		log.verbose('DB config file: "' + confFile + '"');
 
+		// First look for absolute path
 		fs.stat(confFile, function (err) {
-			const altConfFile = __dirname + '/../config/' + confFile;
-
 			if (err) {
-				log.info('Failed to find config file "' + confFile + '", retrying with "' + altConfFile + '"');
 
-				fs.stat(altConfFile, function (err) {
-					if (err) {
-						assert( ! err, 'fs.stat failed: ' + err.message);
-					}
-
-					if ( ! err) {
-						runDbSetup(altConfFile);
-					}
+				// Then look for this string in the config folder
+				confFile = __dirname + '/../config/' + confFile;
+				fs.stat(confFile, function (err) {
+					if (err) throw err;
+					log.verbose('DB config: ' + JSON.stringify(require(confFile)));
+					db.setup(require(confFile), cb);
 				});
-			} else {
-				runDbSetup(confFile);
+
+				return;
 			}
+
+			log.verbose('DB config: ' + JSON.stringify(require(confFile)));
+			db.setup(require(confFile), cb);
 		});
 	});
 
 	// Check for empty db
 	tasks.push(function (cb) {
 		db.query('SHOW TABLES', function (err, rows) {
-			if (err) {
-				assert( ! err, 'err should be negative');
-				log.error(err);
-				process.exit(1);
-			}
+			if (err) throw err;
 
 			if (rows.length) {
-				assert.deepEqual(rows.length, 0);
-				log.error('Database is not empty. To make a test, you must supply an empty database!');
-				process.exit(1);
+				throw new Error('Database is not empty. To make a test, you must supply an empty database!');
 			}
 
-			lFiles.ready(function (err) {
-				assert( ! err, 'err should be negative');
-
-				cb();
-			});
+			cb();
 		});
 	});
 
-	async.series(tasks, done);
+	// Setup intercom
+	tasks.push(function (cb) {
+		utils.instances.intercom = new Intercom('loopback interface');
+		utils.instances.intercom.on('ready', cb);
+	});
+
+	tasks.push(function (cb) {
+		lFiles.dataWriter.ready(cb);
+	});
+
+	async.series(tasks, function (err) {
+		done(err);
+	});
+});
+
+after(function (done) {
+	db.removeAllTables(done);
 });
 
 describe('Files', function () {
@@ -478,8 +471,4 @@ describe('Files', function () {
 
 		async.series(tasks, done);
 	});
-});
-
-after(function (done) {
-	db.removeAllTables(done);
 });

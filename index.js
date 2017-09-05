@@ -1,14 +1,10 @@
 'use strict';
 
-const	DbMigration	= require('larvitdbmigration'),
-	uuidLib	= require('uuid'),
+const	dataWriter	= require(__dirname + '/dataWriter.js'),
 	utils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
-
-let	dbReady	= false,
-	readyRunning	= false;
 
 function File(options, cb) {
 	const	tasks	= [],
@@ -28,7 +24,7 @@ function File(options, cb) {
 	// There must always be a metadata object
 	that.metadata = {};
 
-	tasks.push(ready);
+	tasks.push(dataWriter.ready);
 
 	if (options.slug !== undefined && options.slug !== '') {
 		tasks.push(function (cb) {
@@ -85,7 +81,7 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	const	tasks	= [],
 		that	= this;
 
-	tasks.push(ready);
+	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
 		db.query('SELECT uuid, slug, data FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
@@ -133,30 +129,29 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 };
 
 File.prototype.rm = function rm(cb) {
-	const	tasks	= [],
+	const tasks = [],
 		that	= this;
 
-	if (that.uuid === undefined) {
-		const err = new Error('No uuid set, can not remove file');
-		log.warn('larvitfiles: File() - rm () - ' + err.message);
-		cb(err);
-		return;
-	}
+	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
-		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', [utils.uuidToBuffer(that.uuid)], cb);
-	});
+		const	options	= {'exchange': dataWriter.exchangeName},
+			message	= {};
 
-	tasks.push(function (cb) {
-		db.query('DELETE FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], cb);
-	});
+		message.action	= 'rm';
+		message.params	= {};
+		message.params.data	= {'uuid': that.uuid};
 
-	tasks.push(function (cb) {
-		delete that.uuid;
-		delete that.slug;
-		delete that.data;
-		that.metadata = {};
-		cb();
+		utils.instances.intercom.send(message, options, function (err, msgUuid) {
+			if (err) return cb(err);
+
+			delete that.uuid;
+			delete that.slug;
+			delete that.data;
+			that.metadata = {};
+
+			dataWriter.emitter.once(msgUuid, cb);
+		});
 	});
 
 	async.series(tasks, cb);
@@ -166,75 +161,25 @@ File.prototype.save = function save(cb) {
 	const	tasks	= [],
 		that	= this;
 
-	if (that.slug === undefined) {
-		const err = new Error('Slug must be set to save to database');
-		log.warn('larvitfiles: File() - save() - ' + err.message);
-		cb(err);
-		return;
-	}
+	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
-		getFileUuidBySlug(that.slug, function (err, result) {
-			if (err) { cb(err); return; }
+		const options	= {'exchange': dataWriter.exchangeName},
+			message	= {};
 
-			if (
-					(result !== false	&& result	!== that.uuid)
-				||	(result !== false	&& that.uuid	=== undefined)
-			) {
-				const err = new Error('Slug "' + that.slug + '" is take by another file');
-				log.warn('larvitfiles: File() - save() - ' + err.message);
-				cb(err);
-				return;
-			}
+		message.action	= 'save';
+		message.params	= {};
+		message.params.data	= {
+			'uuid': that.uuid,
+			'slug':	that.slug,
+			'data': that.data,
+			'metadata': that.metadata
+		};
 
-			cb();
+		utils.instances.intercom.send(message, options, function (err, msgUuid) {
+			if (err) return cb(err);
+			dataWriter.emitter.once(msgUuid, cb);
 		});
-	});
-
-	tasks.push(function (cb) {
-		if (that.uuid === undefined) {
-			that.uuid = uuidLib.v4();
-		}
-
-		cb();
-	});
-
-	tasks.push(function (cb) {
-		const	dbFields	= [utils.uuidToBuffer(that.uuid), that.slug, that.data, that.slug, that.data],
-			sql	= 'INSERT INTO larvitfiles_files VALUES(?,?,?) ON DUPLICATE KEY UPDATE slug = ?, data = ?;';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	tasks.push(function (cb) {
-		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', [utils.uuidToBuffer(that.uuid)], cb);
-	});
-
-	tasks.push(function (cb) {
-		const	dbFields	= [];
-
-		let	sql = 'INSERT INTO larvitfiles_files_metadata VALUES';
-
-		for (const name of Object.keys(that.metadata)) {
-			if ( ! (that.metadata[name] instanceof Array)) {
-				that.metadata[name] = [that.metadata[name]];
-			}
-
-			for (let i = 0; that.metadata[name][i] !== undefined; i ++) {
-				sql += '(?,?,?),';
-				dbFields.push(utils.uuidToBuffer(that.uuid));
-				dbFields.push(name);
-				dbFields.push(that.metadata[name][i]);
-			}
-		}
-
-		if (dbFields.length === 0) {
-			cb();
-			return;
-		}
-
-		sql = sql.substring(0, sql.length - 1) + ';';
-		db.query(sql, dbFields, cb);
 	});
 
 	tasks.push(function (cb) {
@@ -255,7 +200,7 @@ Files.prototype.get = function get(cb) {
 		tasks	= [],
 		that	= this;
 
-	tasks.push(ready);
+	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
 		const	dbFields	= [];
@@ -363,63 +308,6 @@ Files.prototype.get = function get(cb) {
 	});
 };
 
-// Checks if database is done migrating
-function ready(cb) {
-	const	options	= {};
-
-	let dbMigration;
-
-	if (readyRunning === true) {
-		setTimeout(function () {
-			ready(cb);
-		}, 10);
-	}
-
-	if (dbReady === true) return cb();
-
-	readyRunning = true;
-
-	options.dbType	= 'larvitdb';
-	options.dbDriver	= db;
-	options.tableName	= 'larvitfiles_db_version';
-	options.migrationScriptsPath	= __dirname + '/dbmigration';
-	dbMigration	= new DbMigration(options);
-
-	dbMigration.run(function (err) {
-		if ( ! err) {
-			dbReady = true;
-		}
-
-		readyRunning = false;
-
-		cb(err);
-	});
-}
-
-/**
- * Get file Uuid by slug
- *
- * @param str slug
- * @param func cb(err, uuid) - uuid being a formatted string or boolean false
- */
-function getFileUuidBySlug(slug, cb) {
-	ready(function (err) {
-		if (err) { cb(err); return; }
-
-		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug], function (err, rows) {
-			if (err) { cb(err); return; }
-
-			if (rows.length === 0) {
-				cb(null, false);
-				return;
-			}
-
-			cb(null, utils.formatUuid(rows[0].uuid));
-		});
-	});
-}
-
+exports.dataWriter	= dataWriter;
 exports.File	= File;
 exports.Files	= Files;
-exports.getFileUuidBySlug	= getFileUuidBySlug;
-exports.ready	= ready;

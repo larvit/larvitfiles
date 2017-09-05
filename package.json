@@ -1,6 +1,6 @@
 {
   "name": "larvitfiles",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Storage of files with an API and database to use in web environments",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,9 @@
     "larvitdb": "^1.2.2",
     "larvitdbmigration": "^2.0.0",
     "larvitfs": "^1.0.1",
-    "larvitutils": "^1.0.2",
+    "larvitutils": "^1.1.1",
+    "larvitamsync": "^0.3.2",
+    "larvitamintercom": "^0.2.5",
     "uuid": "^3.0.0",
     "winston": "^2.2.0"
   },
