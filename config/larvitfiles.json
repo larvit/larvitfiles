@@ -1,3 +1,4 @@
 {
-	"prefix": "/dbfiles/"
+	"prefix": "/dbfiles/",
+	"storagePath": "./larvitfiles"
 }

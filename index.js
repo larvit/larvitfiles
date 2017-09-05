@@ -1,11 +1,30 @@
 'use strict';
 
 const	dataWriter	= require(__dirname + '/dataWriter.js'),
+	logPrefix = 'larvitfiles ./index.js: ',
 	uuidLib	= require('uuid'),
 	utils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
+	fs	= require('fs'),
 	db	= require('larvitdb');
+
+let config;
+
+if (fs.existsSync(process.cwd() + '/config/larvitfiles.json')) {
+	config	= require(process.cwd() + '/config/larvitfiles.json');
+} else {
+	config = {};
+}
+
+if (config.storagePath !== undefined) {
+	exports.storagePath = config.storagePath;
+} else {
+	exports.storagePath = process.cwd() + '/larvitfiles';
+}
+
+
+dataWriter.ready();
 
 function File(options, cb) {
 	const	tasks	= [],
@@ -13,7 +32,7 @@ function File(options, cb) {
 
 	if (typeof options === 'function' || options === undefined) {
 		const err = new Error('First parameter must be an object.');
-		log.warn('larvitviles: File() - ' + err.message);
+		log.info('larvitviles: File() - ' + err.message);
 		return cb(err);
 	}
 
@@ -45,12 +64,12 @@ function File(options, cb) {
 		that.uuid = utils.formatUuid(options.uuid);
 		if (that.uuid === false) {
 			const err = new Error('Invalid uuid supplied: "' + options.uuid + '"');
-			log.warn('larvitviles: File() - ' + err.message);
+			log.info('larvitviles: File() - ' + err.message);
 			return cb(err);
 		}
 	} else {
 		const err = new Error('Options must contain either slug or uuid. Neither was provided.');
-		log.warn('larvitviles: File() - ' + err.message);
+		log.info('larvitviles: File() - ' + err.message);
 		return cb(err);
 	}
 
@@ -77,10 +96,22 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	const	tasks	= [],
 		that	= this;
 
+	if ( ! that.uuid) {
+		const e = new Error('uuid is not defined');
+		log.info(logPrefix + 'loadFromDb() - ' + e.message);
+		return cb(e);
+	}
+
+	if (exports.storagePath === null) {
+		const e = new Error('storagePath not set');
+		log.info(logPrefix + 'loadFromDb() - ' + e.message);
+		return cb(e);
+	}
+
 	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
-		db.query('SELECT uuid, slug, data FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
+		db.query('SELECT uuid, slug FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
 			if (err) return cb(err);
 
 			if (rows.length === 0) {
@@ -91,7 +122,6 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 
 			that.uuid	= utils.formatUuid(rows[0].uuid);
 			that.slug	= rows[0].slug;
-			that.data	= rows[0].data;
 			cb();
 		});
 	});
@@ -120,12 +150,32 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 		});
 	});
 
+	tasks.push(function (cb) {
+		fs.readFile(exports.storagePath + '/' + that.uuid, function (err, data) {
+			if (err) return cb(err);
+			that.data = data;
+			cb();
+		});
+	});
+
 	async.series(tasks, cb);
 };
 
 File.prototype.rm = function rm(cb) {
 	const tasks = [],
 		that	= this;
+
+	if ( ! that.uuid) {
+		const e = new Error('uuid is not defined');
+		log.info(logPrefix + 'rm() - ' + e.message);
+		return cb(e);
+	}
+
+	if (exports.storagePath === null) {
+		const e = new Error('storagePath not set');
+		log.info(logPrefix + 'rm() - ' + e.message);
+		return cb(e);
+	}
 
 	tasks.push(dataWriter.ready);
 
@@ -139,22 +189,35 @@ File.prototype.rm = function rm(cb) {
 
 		utils.instances.intercom.send(message, options, function (err, msgUuid) {
 			if (err) return cb(err);
-
-			delete that.uuid;
-			delete that.slug;
-			delete that.data;
-			that.metadata = {};
-
 			dataWriter.emitter.once(msgUuid, cb);
 		});
 	});
 
-	async.series(tasks, cb);
+	tasks.push(function (cb) {
+		fs.unlink(exports.storagePath + '/' + that.uuid, cb);
+	});
+
+	async.series(tasks, function (err) {
+		if (err) return cb(err);
+
+		delete that.uuid;
+		delete that.slug;
+		delete that.data;
+		that.metadata = {};
+
+		cb();
+	});
 };
 
 File.prototype.save = function save(cb) {
 	const	tasks	= [],
 		that	= this;
+
+	if (exports.storagePath === null) {
+		const e = new Error('storagePath not set');
+		log.info(logPrefix + 'save() - ' + e.message);
+		return cb(e);
+	}
 
 	tasks.push(dataWriter.ready);
 
@@ -167,7 +230,6 @@ File.prototype.save = function save(cb) {
 		message.params.data	= {
 			'uuid':	that.uuid,
 			'slug':	that.slug,
-			'data':	that.data,
 			'metadata':	that.metadata
 		};
 
@@ -175,6 +237,10 @@ File.prototype.save = function save(cb) {
 			if (err) return cb(err);
 			dataWriter.emitter.once(msgUuid, cb);
 		});
+	});
+
+	tasks.push(function (cb) {
+		fs.writeFile(exports.storagePath + '/' + that.uuid, that.data, cb);
 	});
 
 	tasks.push(function (cb) {
@@ -310,9 +376,13 @@ Files.prototype.get = function get(cb) {
  * @param func cb(err, uuid) - uuid being a formatted string or boolean false
  */
 function getFileUuidBySlug(slug, cb) {
-	ready(function (err) {
-		if (err) return cb(err);
+	const tasks = [];
 
+	let result = false;
+
+	tasks.push(dataWriter.ready);
+
+	tasks.push(function (cb) {
 		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug], function (err, rows) {
 			if (err) return cb(err);
 
@@ -320,10 +390,16 @@ function getFileUuidBySlug(slug, cb) {
 				return cb(null, false);
 			}
 
-			cb(null, utils.formatUuid(rows[0].uuid));
+			result = utils.formatUuid(rows[0].uuid);
+
+			cb();
 		});
 	});
-}
+
+	async.series(tasks, function (err) {
+		cb(err, result);
+	});
+};
 
 exports.dataWriter	= dataWriter;
 exports.File	= File;

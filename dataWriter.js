@@ -261,7 +261,7 @@ function save(params, deliveryTag, msgUuid) {
 
 			if (uuid !== null && uuid !== options.uuid) {
 				const	err	= new Error('Slug "' + options.slug + '" is take by another file');
-				log.warn(logPrefix + err.message);
+				log.info(logPrefix + err.message);
 				return cb(err);
 			}
 
@@ -271,8 +271,8 @@ function save(params, deliveryTag, msgUuid) {
 
 	// Insert into files
 	tasks.push(function (cb) {
-		const	dbFields	= [lUtils.uuidToBuffer(options.uuid), options.slug, options.data, options.slug, options.data],
-			sql	= 'INSERT INTO larvitfiles_files VALUES(?,?,?) ON DUPLICATE KEY UPDATE slug = ?, data = ?;';
+		const	dbFields	= [lUtils.uuidToBuffer(options.uuid), options.slug],
+			sql	= 'INSERT INTO larvitfiles_files VALUES(?,?) ON DUPLICATE KEY UPDATE slug = VALUES(slug);';
 
 		db.query(sql, dbFields, cb);
 	});
