@@ -308,6 +308,30 @@ Files.prototype.get = function get(cb) {
 	});
 };
 
+/**
+ * Get file Uuid by slug
+ *
+ * @param str slug
+ * @param func cb(err, uuid) - uuid being a formatted string or boolean false
+ */
+function getFileUuidBySlug(slug, cb) {
+	ready(function (err) {
+		if (err) { cb(err); return; }
+
+		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug], function (err, rows) {
+			if (err) { cb(err); return; }
+
+			if (rows.length === 0) {
+				cb(null, false);
+				return;
+			}
+
+			cb(null, utils.formatUuid(rows[0].uuid));
+		});
+	});
+}
+
 exports.dataWriter	= dataWriter;
 exports.File	= File;
 exports.Files	= Files;
+exports.getFileUuidBySlug	= getFileUuidBySlug;
