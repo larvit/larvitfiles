@@ -1,6 +1,7 @@
 'use strict';
 
 const	dataWriter	= require(__dirname + '/dataWriter.js'),
+	uuidLib	= require('uuid'),
 	utils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
@@ -13,8 +14,7 @@ function File(options, cb) {
 	if (typeof options === 'function' || options === undefined) {
 		const err = new Error('First parameter must be an object.');
 		log.warn('larvitviles: File() - ' + err.message);
-		cb(err);
-		return;
+		return cb(err);
 	}
 
 	if (cb === undefined) {
@@ -22,19 +22,18 @@ function File(options, cb) {
 	}
 
 	// There must always be a metadata object
-	that.metadata = {};
+	that.metadata	= {};
 
 	tasks.push(dataWriter.ready);
 
 	if (options.slug !== undefined && options.slug !== '') {
 		tasks.push(function (cb) {
 			db.query('SELECT uuid, slug FROM larvitfiles_files WHERE slug = ?', [options.slug], function (err, rows) {
-				if (err) { cb(err); return; }
+				if (err) return cb(err);
 
 				if (rows.length === 0) {
-					that.slug = options.slug;
-					cb();
-					return;
+					that.slug	= options.slug;
+					return cb();
 				}
 
 				that.uuid	= utils.formatUuid(rows[0].uuid);
@@ -47,20 +46,18 @@ function File(options, cb) {
 		if (that.uuid === false) {
 			const err = new Error('Invalid uuid supplied: "' + options.uuid + '"');
 			log.warn('larvitviles: File() - ' + err.message);
-			cb(err);
-			return;
+			return cb(err);
 		}
 	} else {
 		const err = new Error('Options must contain either slug or uuid. Neither was provided.');
 		log.warn('larvitviles: File() - ' + err.message);
-		cb(err);
-		return;
+		return cb(err);
 	}
 
 	tasks.push(function (cb) {
 		if (that.uuid === undefined) {
-			cb();
-			return;
+			that.uuid	= uuidLib.v4();
+			return cb();
 		}
 
 		that.loadFromDb(cb);
@@ -70,7 +67,6 @@ function File(options, cb) {
 		if (options.slug)	{ that.slug	= options.slug;	}
 		if (options.data)	{ that.data	= options.data;	}
 		if (options.metadata)	{ that.metadata	= options.metadata;	}
-
 		cb();
 	});
 
@@ -85,13 +81,12 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 
 	tasks.push(function (cb) {
 		db.query('SELECT uuid, slug, data FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			if (rows.length === 0) {
 				const err = new Error('No file found with uuid: ' + utils.formatUuid(that.uuid));
 				log.info('larvitfiles: File() - ' + err.message);
-				cb(err);
-				return;
+				return cb(err);
 			}
 
 			that.uuid	= utils.formatUuid(rows[0].uuid);
@@ -109,13 +104,13 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 		}
 
 		db.query('SELECT name, value FROM larvitfiles_files_metadata WHERE fileUuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const	row	= rows[i];
 
 				if (that.metadata[row.name] === undefined) {
-					that.metadata[row.name] = [];
+					that.metadata[row.name]	= [];
 				}
 
 				that.metadata[row.name].push(row.value);
@@ -170,10 +165,10 @@ File.prototype.save = function save(cb) {
 		message.action	= 'save';
 		message.params	= {};
 		message.params.data	= {
-			'uuid': that.uuid,
+			'uuid':	that.uuid,
 			'slug':	that.slug,
-			'data': that.data,
-			'metadata': that.metadata
+			'data':	that.data,
+			'metadata':	that.metadata
 		};
 
 		utils.instances.intercom.send(message, options, function (err, msgUuid) {
@@ -191,7 +186,7 @@ File.prototype.save = function save(cb) {
 
 function Files() {
 	this.filter = {
-		'metadata': {}
+		'metadata':	{}
 	};
 }
 
@@ -235,7 +230,7 @@ Files.prototype.get = function get(cb) {
 		}
 
 		db.query(sql, dbFields, function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const	fileUuid	= utils.formatUuid(rows[i].uuid);
@@ -284,7 +279,7 @@ Files.prototype.get = function get(cb) {
 		}
 
 		db.query(sql, dbFields, function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const	fileUuid	= utils.formatUuid(rows[i].fileUuid),
@@ -302,7 +297,7 @@ Files.prototype.get = function get(cb) {
 	});
 
 	async.series(tasks, function (err) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		cb(null, dbFiles);
 	});
@@ -316,14 +311,13 @@ Files.prototype.get = function get(cb) {
  */
 function getFileUuidBySlug(slug, cb) {
 	ready(function (err) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug], function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			if (rows.length === 0) {
-				cb(null, false);
-				return;
+				return cb(null, false);
 			}
 
 			cb(null, utils.formatUuid(rows[0].uuid));

@@ -5,7 +5,6 @@ const	EventEmitter	= require('events').EventEmitter,
 	topLogPrefix	= 'larvitfiles: dataWriter.js: ',
 	DbMigration	= require('larvitdbmigration'),
 	lUtils	= require('larvitutils'),
-	uuidLib = require('uuid'),
 	amsync	= require('larvitamsync'),
 	async	= require('async'),
 	log	= require('winston'),
@@ -249,10 +248,10 @@ function save(params, deliveryTag, msgUuid) {
 		return cb(err);
 	}
 
-	// check validity of slug and uuid
+	// Check validity of slug and uuid
 	tasks.push(function (cb) {
 		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [options.slug], function (err, rows) {
-			let uuid = null;
+			let	uuid	= null;
 
 			if (err) return cb(err);
 
@@ -261,20 +260,16 @@ function save(params, deliveryTag, msgUuid) {
 			}
 
 			if (uuid !== null && uuid !== options.uuid) {
-				const err = new Error('Slug "' + options.slug + '" is take by another file');
+				const	err	= new Error('Slug "' + options.slug + '" is take by another file');
 				log.warn(logPrefix + err.message);
 				return cb(err);
-			}
-
-			if (options.uuid === undefined) {
-				options.uuid = uuidLib.v4();
 			}
 
 			cb();
 		});
 	});
 
-	// insert into files
+	// Insert into files
 	tasks.push(function (cb) {
 		const	dbFields	= [lUtils.uuidToBuffer(options.uuid), options.slug, options.data, options.slug, options.data],
 			sql	= 'INSERT INTO larvitfiles_files VALUES(?,?,?) ON DUPLICATE KEY UPDATE slug = ?, data = ?;';
@@ -282,16 +277,16 @@ function save(params, deliveryTag, msgUuid) {
 		db.query(sql, dbFields, cb);
 	});
 
-	// delete metadata
+	// Delete metadata
 	tasks.push(function (cb) {
 		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', [lUtils.uuidToBuffer(options.uuid)], cb);
 	});
 
-	//insert metadata
+	// Insert metadata
 	tasks.push(function (cb) {
 		const	dbFields	= [];
 
-		let	sql = 'INSERT INTO larvitfiles_files_metadata VALUES';
+		let	sql	= 'INSERT INTO larvitfiles_files_metadata VALUES';
 
 		for (const name of Object.keys(options.metadata)) {
 			if ( ! (options.metadata[name] instanceof Array)) {

@@ -18,7 +18,6 @@ lFiles.dataWriter.mode = 'master';
 // Set up winston
 log.remove(log.transports.Console);
 
-
 before(function (done) {
 	const	tasks	= [];
 
@@ -150,7 +149,7 @@ describe('Files', function () {
 			file.save(function (err) {
 				if (err) throw err;
 
-				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
+				assert.strictEqual(file.uuid,	utils.formatUuid(file.uuid));
 				assert.deepEqual(file.metadata.metadata1,	['metavalue2']);
 				assert.deepEqual(file.metadata.other,	['value']);
 				assert.deepEqual(Object.keys(file.metadata).length,	2);
@@ -360,11 +359,10 @@ describe('Files', function () {
 		});
 
 		tasks.push(function (cb) {
-			const file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
+			db.query('SELECT * FROM larvitfiles_files WHERE slug = \'slug/foo/bar.txt\'', function (err, rows) {
 				if (err) throw err;
 
-				assert.deepEqual(file.uuid,	undefined);
-
+				assert.strictEqual(rows.length,	0);
 				cb();
 			});
 		});
