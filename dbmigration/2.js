@@ -21,7 +21,7 @@ exports = module.exports = function (cb) {
 
 	if ( ! fs.existsSync(lFiles.storagePath)) {
 		log.info(logPrefix + 'storagePath "' + lFiles.storagePath + '" does not exist, creating');
-		fs.mkdir(lsFiles.storagePath, cb);
+		fs.mkdir(lFiles.storagePath, cb);
 	}
 
 	// get list of slugs and uuids
