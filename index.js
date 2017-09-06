@@ -23,6 +23,11 @@ if (config.storagePath !== undefined) {
 	exports.storagePath = process.cwd() + '/larvitfiles';
 }
 
+if (config.prefix) {
+	exports.prefix = config.prefix;
+} else {
+	exports.prefix = '/dbfiles/';
+}
 
 dataWriter.ready();
 

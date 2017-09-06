@@ -5,12 +5,11 @@
 
 const	lfs	= require('larvitfs'),
 	notFoundPath	= lfs.getPathSync('controllers/404.js'),
-	lFiles	= require(__dirname + '/../index.js'),
-	conf	= require(lfs.getPathSync('config/larvitfiles.json'));
+	lFiles	= require(__dirname + '/../index.js');
 
 exports.run = function (req, res, cb) {
 	const file = new lFiles.File({
-		'slug': req.urlParsed.pathname.substring(conf.prefix.length)
+		'slug': req.urlParsed.pathname.substring(lFiles.prefix.length)
 	}, function (err) {
 		if (err) { cb(err, req, res, {}); return; }
 

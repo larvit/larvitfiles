@@ -6,7 +6,6 @@ const	freeport	= require('freeport'),
 	assert	= require('assert'),
 	async	= require('async'),
 	utils	= require('larvitutils'),
-	conf	= require(__dirname + '/../config/larvitfiles.json'),
 	http	= require('http'),
 	log	= require('winston'),
 	db	= require('larvitdb'),
@@ -333,7 +332,7 @@ describe('Files', function () {
 			const lBase = require('larvitbase')({
 				'port': port,
 				'customRoutes': [{
-					'regex':	'^' + conf.prefix,
+					'regex':	'^' + lFiles.prefix,
 					'controllerName':	'getFile'
 				}]
 			});
@@ -351,7 +350,7 @@ describe('Files', function () {
 
 		// Make request to the server
 		tasks.push(function (cb) {
-			const req = http.request({'port': port, 'path': conf.prefix + 'slug/foo/bar.txt'}, function (res) {
+			const req = http.request({'port': port, 'path': lFiles.prefix + 'slug/foo/bar.txt'}, function (res) {
 				assert.deepEqual(res.statusCode, 200);
 				res.on('data', function (chunk) {
 					assert.deepEqual(chunk, fileData);
