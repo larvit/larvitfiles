@@ -192,7 +192,7 @@ File.prototype.rm = function rm(cb) {
 		message.params	= {};
 		message.params.data	= {'uuid': that.uuid};
 
-		utils.instances.intercom.send(message, options, function (err, msgUuid) {
+		dataWriter.intercom.send(message, options, function (err, msgUuid) {
 			if (err) return cb(err);
 			dataWriter.emitter.once(msgUuid, cb);
 		});
@@ -238,7 +238,7 @@ File.prototype.save = function save(cb) {
 			'metadata':	that.metadata
 		};
 
-		utils.instances.intercom.send(message, options, function (err, msgUuid) {
+		dataWriter.intercom.send(message, options, function (err, msgUuid) {
 			if (err) return cb(err);
 			dataWriter.emitter.once(msgUuid, cb);
 		});
