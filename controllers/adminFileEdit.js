@@ -22,10 +22,10 @@ exports.run = function (req, res, cb) {
 	}
 
 	if (data.global.formFields.save !== undefined) {
-		const	newFileData	= {
-					'slug':	data.global.formFields.slug,
-					'metadata':	{}
-				};
+		const	newFileData	= {};
+
+		newFileData.slug	= data.global.formFields.slug;
+		newFileData.metadata	= {};
 
 		// Set metadata
 		for (let i = 0; data.global.formFields.metaDataName[i] !== undefined; i ++) {

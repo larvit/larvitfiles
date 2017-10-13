@@ -2,7 +2,6 @@
 
 const	freeport	= require('freeport'),
 	Intercom	= require('larvitamintercom'),
-	lFiles	= require(__dirname + '/../index.js'),
 	assert	= require('assert'),
 	async	= require('async'),
 	utils	= require('larvitutils'),
@@ -11,7 +10,7 @@ const	freeport	= require('freeport'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
-lFiles.dataWriter.mode = 'master';
+let	filesLib;
 
 // Set up winston
 log.remove(log.transports.Console);
@@ -66,14 +65,17 @@ before(function (done) {
 		});
 	});
 
-	// Setup intercom
+	// Set lib
 	tasks.push(function (cb) {
-		utils.instances.intercom = new Intercom('loopback interface');
-		utils.instances.intercom.on('ready', cb);
+		filesLib	= require(__dirname + '/../index.js');
+
+		filesLib.dataWriter.mode	= 'master';
+		filesLib.dataWriter.intercom	= new Intercom('loopback interface');
+		cb();
 	});
 
 	tasks.push(function (cb) {
-		lFiles.dataWriter.ready(cb);
+		filesLib.dataWriter.ready(cb);
 	});
 
 	async.series(tasks, function (err) {
@@ -84,19 +86,19 @@ before(function (done) {
 after(function (done) {
 	const tasks = [];
 
-	// clear db
+	// Clear db
 	tasks.push(function (cb) {
 		db.removeAllTables(cb);
 	});
 
-	// clear test files
+	// Clear test files
 	tasks.push(function (cb) {
 		const tasks = [];
 
-		for (const file of fs.readdirSync(lFiles.storagePath)) {
+		for (const file of fs.readdirSync(filesLib.storagePath)) {
 
 			tasks.push(function (cb) {
-				fs.unlink(lFiles.storagePath + '/' + file, cb);
+				fs.unlink(filesLib.storagePath + '/' + file, cb);
 			});
 		}
 
@@ -113,7 +115,7 @@ describe('Files', function () {
 
 			if (err) throw err;
 
-			file = new lFiles.File({
+			file = new filesLib.File({
 				'slug':	'slug/foo/bar.txt',
 				'data':	data,
 				'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']}
@@ -128,7 +130,7 @@ describe('Files', function () {
 					assert.deepEqual(file.metadata.metadata2,	['multiple', 'values']);
 					assert.deepEqual(Object.keys(file.metadata).length,	2);
 					assert.deepEqual(file.slug,	'slug/foo/bar.txt');
-				//	assert.deepEqual(file.data,	data);
+					// assert.deepEqual(file.data,	data);
 
 					done();
 				});
@@ -142,7 +144,7 @@ describe('Files', function () {
 
 			if (err) throw err;
 
-			file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
+			file = new filesLib.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 				if (err) throw err;
 
 				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
@@ -158,7 +160,7 @@ describe('Files', function () {
 	});
 
 	it('Write another to db', function (done) {
-		const file = new lFiles.File({
+		const file = new filesLib.File({
 			'slug':	'boll.txt',
 			'data':	new Buffer('buhu'),
 			'metadata':	{'metadata1': 'metavalue2', 'other': 'value'}
@@ -181,7 +183,7 @@ describe('Files', function () {
 	});
 
 	it('List all files in storage', function (done) {
-		const	files	= new lFiles.Files();
+		const	files	= new filesLib.Files();
 
 		files.get(function (err, result) {
 			if (err) throw err;
@@ -201,7 +203,7 @@ describe('Files', function () {
 	});
 
 	it('Write yet another to db', function (done) {
-		const file = new lFiles.File({
+		const file = new filesLib.File({
 			'slug':	'fippel.txt',
 			'data':	new Buffer('ðđªßð'),
 			'metadata':	{'foo': ['bar', 'baz', 'buu'], 'other': ['value', 'andThis']}
@@ -217,7 +219,7 @@ describe('Files', function () {
 	});
 
 	it('List files in storage filtered by exact metadata', function (done) {
-		const	files	= new lFiles.Files();
+		const	files	= new filesLib.Files();
 
 		files.filter.metadata.metadata1 = 'metavalue2';
 
@@ -240,7 +242,7 @@ describe('Files', function () {
 	});
 
 	it('List files in storage filtered by exact metadata, multiple metadata', function (done) {
-		const	files	= new lFiles.Files();
+		const	files	= new filesLib.Files();
 
 		files.filter.metadata.other	= 'value';
 		files.filter.metadata.metadata1	= 'metavalue2';
@@ -255,7 +257,7 @@ describe('Files', function () {
 	});
 
 	it('List files in storage filtered by exact metadata, multiple matches', function (done) {
-		const	files	= new lFiles.Files();
+		const	files	= new filesLib.Files();
 
 		files.filter.metadata.other = 'value';
 
@@ -269,7 +271,7 @@ describe('Files', function () {
 	});
 
 	it('List files in storage filtered by existing metadata key', function (done) {
-		const	files	= new lFiles.Files();
+		const	files	= new filesLib.Files();
 
 		files.filter.metadata.metadata1 = true;
 
@@ -283,7 +285,7 @@ describe('Files', function () {
 	});
 
 	it('List files in storage filtered by existing metadata key in combination with exact metadata', function (done) {
-		const	files	= new lFiles.Files();
+		const	files	= new filesLib.Files();
 
 		files.filter.metadata.metadata1	= true;
 		files.filter.metadata.other	= 'value';
@@ -298,7 +300,7 @@ describe('Files', function () {
 	});
 
 	it('List files in storage filtered by two metadata values in combination', function (done) {
-		const	files	= new lFiles.Files();
+		const	files	= new filesLib.Files();
 
 		files.filter.metadata.other	= ['value', 'andThis'];
 
@@ -332,7 +334,7 @@ describe('Files', function () {
 			const lBase = require('larvitbase')({
 				'port': port,
 				'customRoutes': [{
-					'regex':	'^' + lFiles.prefix,
+					'regex':	'^' + filesLib.prefix,
 					'controllerName':	'getFile'
 				}]
 			});
@@ -350,7 +352,7 @@ describe('Files', function () {
 
 		// Make request to the server
 		tasks.push(function (cb) {
-			const req = http.request({'port': port, 'path': lFiles.prefix + 'slug/foo/bar.txt'}, function (res) {
+			const req = http.request({'port': port, 'path': filesLib.prefix + 'slug/foo/bar.txt'}, function (res) {
 				assert.deepEqual(res.statusCode, 200);
 				res.on('data', function (chunk) {
 					assert.deepEqual(chunk, fileData);
@@ -368,7 +370,7 @@ describe('Files', function () {
 		const	tasks	= [];
 
 		tasks.push(function (cb) {
-			const file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
+			const file = new filesLib.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 				if (err) throw err;
 
 				assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
@@ -396,7 +398,7 @@ describe('Files', function () {
 			file;
 
 		tasks.push(function (cb) {
-			file = new lFiles.File({'slug': 'boll.txt'}, function (err) {
+			file = new filesLib.File({'slug': 'boll.txt'}, function (err) {
 				if (err) throw err;
 
 				fileUuid = file.uuid;
@@ -425,7 +427,7 @@ describe('Files', function () {
 		});
 
 		tasks.push(function (cb) {
-			const testFile = new lFiles.File({'uuid': fileUuid}, function (err) {
+			const testFile = new filesLib.File({'uuid': fileUuid}, function (err) {
 				if (err) throw err;
 
 				assert.deepEqual(testFile.uuid,	utils.formatUuid(testFile.uuid));
@@ -449,7 +451,7 @@ describe('Files', function () {
 			file;
 
 		tasks.push(function (cb) {
-			file = new lFiles.File({'slug': 'somethingNewAndShiny.txt'}, function (err) {
+			file = new filesLib.File({'slug': 'somethingNewAndShiny.txt'}, function (err) {
 				if (err) throw err;
 
 				fileUuid = file.uuid;
@@ -472,7 +474,7 @@ describe('Files', function () {
 		});
 
 		tasks.push(function (cb) {
-			const testFile = new lFiles.File({'uuid': fileUuid}, function (err) {
+			const testFile = new filesLib.File({'uuid': fileUuid}, function (err) {
 				if (err) throw err;
 
 				assert.deepEqual(testFile.uuid,	utils.formatUuid(testFile.uuid));
