@@ -410,3 +410,4 @@ exports.dataWriter	= dataWriter;
 exports.File	= File;
 exports.Files	= Files;
 exports.getFileUuidBySlug	= getFileUuidBySlug;
+exports.options	= dataWriter.options;
