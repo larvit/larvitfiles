@@ -157,7 +157,7 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 
 	tasks.push(function (cb) {
 		fs.readFile(exports.storagePath + '/' + that.uuid, function (err, data) {
-			if (err) return cb(err);
+			if (err) log.warn(logPrefix + 'loadFromDb - Failed to load file data from disk: ' + err.message);
 			that.data = data;
 			cb();
 		});
