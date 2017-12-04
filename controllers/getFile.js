@@ -9,7 +9,7 @@ const	lfs	= require('larvitfs'),
 
 exports.run = function (req, res, cb) {
 	const file = new lFiles.File({
-		'slug': req.urlParsed.pathname.substring(lFiles.prefix.length)
+		'slug': decodeURIComponent(req.urlParsed.pathname.substring(lFiles.prefix.length))
 	}, function (err) {
 		if (err) { cb(err, req, res, {}); return; }
 
