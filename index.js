@@ -3,7 +3,7 @@
 const	dataWriter	= require(__dirname + '/dataWriter.js'),
 	logPrefix = 'larvitfiles ./index.js: ',
 	uuidLib	= require('uuid'),
-	utils	= require('larvitutils'),
+	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
 	fs	= require('fs'),
@@ -18,15 +18,15 @@ if (fs.existsSync(process.cwd() + '/config/larvitfiles.json')) {
 }
 
 if (config.storagePath !== undefined) {
-	exports.storagePath = config.storagePath;
+	exports.storagePath	= config.storagePath;
 } else {
-	exports.storagePath = process.cwd() + '/larvitfiles';
+	exports.storagePath	= process.cwd() + '/larvitfiles';
 }
 
 if (config.prefix) {
-	exports.prefix = config.prefix;
+	exports.prefix	= config.prefix;
 } else {
-	exports.prefix = '/dbfiles/';
+	exports.prefix	= '/dbfiles/';
 }
 
 dataWriter.ready();
@@ -60,13 +60,13 @@ function File(options, cb) {
 					return cb();
 				}
 
-				that.uuid	= utils.formatUuid(rows[0].uuid);
+				that.uuid	= lUtils.formatUuid(rows[0].uuid);
 				that.slug	= rows[0].slug;
 				cb();
 			});
 		});
 	} else if (options.uuid) {
-		that.uuid = utils.formatUuid(options.uuid);
+		that.uuid = lUtils.formatUuid(options.uuid);
 		if (that.uuid === false) {
 			const err = new Error('Invalid uuid supplied: "' + options.uuid + '"');
 			log.info('larvitviles: File() - ' + err.message);
@@ -116,16 +116,16 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
-		db.query('SELECT uuid, slug FROM larvitfiles_files WHERE uuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
+		db.query('SELECT uuid, slug FROM larvitfiles_files WHERE uuid = ?', [lUtils.uuidToBuffer(that.uuid)], function (err, rows) {
 			if (err) return cb(err);
 
 			if (rows.length === 0) {
-				const err = new Error('No file found with uuid: ' + utils.formatUuid(that.uuid));
+				const err = new Error('No file found with uuid: ' + lUtils.formatUuid(that.uuid));
 				log.info('larvitfiles: File() - ' + err.message);
 				return cb(err);
 			}
 
-			that.uuid	= utils.formatUuid(rows[0].uuid);
+			that.uuid	= lUtils.formatUuid(rows[0].uuid);
 			that.slug	= rows[0].slug;
 			cb();
 		});
@@ -138,7 +138,7 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 			cb();
 		}
 
-		db.query('SELECT name, value FROM larvitfiles_files_metadata WHERE fileUuid = ?', [utils.uuidToBuffer(that.uuid)], function (err, rows) {
+		db.query('SELECT name, value FROM larvitfiles_files_metadata WHERE fileUuid = ?', [lUtils.uuidToBuffer(that.uuid)], function (err, rows) {
 			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -262,7 +262,8 @@ function Files() {
 }
 
 Files.prototype.get = function get(cb) {
-	const	dbFiles	= {},
+	const	fileUuids	= [],
+		dbFiles	= {},
 		tasks	= [],
 		that	= this;
 
@@ -271,9 +272,11 @@ Files.prototype.get = function get(cb) {
 	tasks.push(function (cb) {
 		const	dbFields	= [];
 
-		let sql = 'SELECT uuid, slug FROM larvitfiles_files WHERE 1';
+		let sql = 'SELECT DISTINCT f.uuid, f.slug\nFROM larvitfiles_files f\n';
 
 		if (Object.keys(that.filter.metadata).length !== 0) {
+			let	counter	= 0;
+
 			for (const name of Object.keys(that.filter.metadata)) {
 				let values = that.filter.metadata[name];
 
@@ -284,18 +287,21 @@ Files.prototype.get = function get(cb) {
 				for (let i = 0; values[i] !== undefined; i ++) {
 					const value = values[i];
 
-					sql += ' AND uuid IN (SELECT DISTINCT fileUuid FROM larvitfiles_files_metadata WHERE ';
+					counter ++;
+					sql += '	JOIN larvitfiles_files_metadata fm' + counter;
+					sql += ' ON f.uuid = fm' + counter + '.fileUuid';
 
 					if (value === true) {
-						sql += 'name = ?';
+						sql += ' AND fm' + counter + '.name = ?';
 						dbFields.push(name);
 					} else {
-						sql += 'name = ? AND value = ?';
+						sql += ' AND fm' + counter + '.name = ?';
+						sql += ' AND fm' + counter + '.value = ?';
 						dbFields.push(name);
 						dbFields.push(value);
 					}
 
-					sql += ')';
+					sql += '\n';
 				}
 			}
 		}
@@ -304,7 +310,9 @@ Files.prototype.get = function get(cb) {
 			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
-				const	fileUuid	= utils.formatUuid(rows[i].uuid);
+				const	fileUuid	= lUtils.formatUuid(rows[i].uuid);
+
+				fileUuids.push(fileUuid);
 
 				dbFiles[fileUuid] = {
 					'uuid':	fileUuid,
@@ -317,43 +325,27 @@ Files.prototype.get = function get(cb) {
 		});
 	});
 
+	// Get all metadata
 	tasks.push(function (cb) {
 		const	dbFields	= [];
 
-		let sql = 'SELECT * FROM larvitfiles_files_metadata WHERE 1';
+		let sql = 'SELECT * FROM larvitfiles_files_metadata WHERE fileUuid IN (';
 
-		if (Object.keys(that.filter.metadata).length !== 0) {
-			for (const name of Object.keys(that.filter.metadata)) {
-				let values = that.filter.metadata[name];
+		if (fileUuids.length === 0) return cb();
 
-				if ( ! (values instanceof Array)) {
-					values = [values];
-				}
-
-				for (let i = 0; values[i] !== undefined; i ++) {
-					const value = values[i];
-
-					sql += ' AND fileUuid IN (SELECT DISTINCT fileUuid FROM larvitfiles_files_metadata WHERE ';
-
-					if (value === true) {
-						sql += 'name = ?';
-						dbFields.push(name);
-					} else {
-						sql += 'name = ? AND value = ?';
-						dbFields.push(name);
-						dbFields.push(value);
-					}
-
-					sql += ')';
-				}
-			}
+		for (let i = 0; fileUuids[i] !== undefined; i ++) {
+			const	fileUuidBuf	= lUtils.uuidToBuffer(fileUuids[i]);
+			sql += '?,';
+			dbFields.push(fileUuidBuf);
 		}
+
+		sql = sql.substring(0, sql.length - 1) + ')';
 
 		db.query(sql, dbFields, function (err, rows) {
 			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
-				const	fileUuid	= utils.formatUuid(rows[i].fileUuid),
+				const	fileUuid	= lUtils.formatUuid(rows[i].fileUuid),
 					row	= rows[i];
 
 				if (dbFiles[fileUuid].metadata[row.name] === undefined) {
@@ -395,7 +387,7 @@ function getFileUuidBySlug(slug, cb) {
 				return cb(null, false);
 			}
 
-			result = utils.formatUuid(rows[0].uuid);
+			result = lUtils.formatUuid(rows[0].uuid);
 
 			cb();
 		});
