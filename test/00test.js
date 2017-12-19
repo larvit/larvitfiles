@@ -319,6 +319,22 @@ describe('Files', function () {
 		});
 	});
 
+	it('List files in storage filtered by exact metadata, multiple metadata and the or operator', function (done) {
+		const	files	= new filesLib.Files();
+
+		files.filter.metadata.metadata1	= 'metavalue2';
+		files.filter.metadata.foo	= 'baz';
+		files.filter.operator	= 'or';
+
+		files.get(function (err, result) {
+			if (err) throw err;
+
+			assert.deepEqual(Object.keys(result).length,	2);
+
+			done();
+		});
+	});
+
 	it('Return octet stream on larvitbase controller', function (done) {
 		const	tasks	= [];
 

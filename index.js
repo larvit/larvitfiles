@@ -278,18 +278,22 @@ Files.prototype.get = function get(cb) {
 
 		let sql = 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n';
 
-		if (Object.keys(that.filter.metadata).length !== 0) {
+		if (that.filter.operator !== 'or') {
+			that.filter.operator	= 'and';
+		}
+
+		if (that.filter.operator === 'and' && Object.keys(that.filter.metadata).length !== 0) {
 			let	counter	= 0;
 
 			for (const name of Object.keys(that.filter.metadata)) {
-				let values = that.filter.metadata[name];
+				let	values	= that.filter.metadata[name];
 
 				if ( ! (values instanceof Array)) {
 					values = [values];
 				}
 
 				for (let i = 0; values[i] !== undefined; i ++) {
-					const value = values[i];
+					const	value	= values[i];
 
 					counter ++;
 					sql += '	JOIN larvitfiles_files_metadata fm' + counter;
@@ -314,6 +318,34 @@ Files.prototype.get = function get(cb) {
 				log.warn(logPrefix + err.message);
 				return cb(err);
 			}
+		}
+
+		if (that.filter.operator === 'or' && Object.keys(that.filter.metadata).length !== 0) {
+			sql += 'WHERE f.uuid IN (SELECT fileUuid FROM larvitfiles_files_metadata WHERE ';
+
+			for (const name of Object.keys(that.filter.metadata)) {
+				let	values	= that.filter.metadata[name];
+
+				if ( ! (values instanceof Array)) {
+					values = [values];
+				}
+
+				for (let i = 0; values[i] !== undefined; i ++) {
+					const	value	= values[i];
+
+					if (value === true) {
+						sql += 'name = ? OR ';
+						dbFields.push(name);
+					} else {
+						sql += '(name = ? AND value = ?) OR ';
+						dbFields.push(name);
+						dbFields.push(value);
+					}
+				}
+			}
+
+			sql = sql.substring(0, sql.length - 4);
+			sql += ')\n';
 		}
 
 		db.query(sql, dbFields, function (err, rows) {

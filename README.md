@@ -85,7 +85,7 @@ file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 
 ### List files in storage
 
-List all files
+#### List all files
 
 ```javascript
 const	lFiles	= require('larvitfiles'),
@@ -103,7 +103,7 @@ files.get(function (err, result) {
 });
 ```
 
-Filter list based on metadata
+#### Filter list based on metadata
 
 ```javascript
 const	lFiles	= require('larvitfiles'),
@@ -121,6 +121,7 @@ files = new lFiles.Files();
 // 2) "zoo" = anything
 files.filter.metadata.foo = 'bar';
 files.filter.metadata.zoo = true;
+files.filter.operator	= 'and'; // or 'or'. 'and' is default
 files.get(function (err, result) {
 	if (err) throw err;
 
