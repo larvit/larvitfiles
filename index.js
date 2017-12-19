@@ -1,7 +1,7 @@
 'use strict';
 
-const	dataWriter	= require(__dirname + '/dataWriter.js'),
-	logPrefix = 'larvitfiles ./index.js: ',
+const	topLogPrefix	= 'larvitfiles: ./index.js: ',
+	dataWriter	= require(__dirname + '/dataWriter.js'),
 	uuidLib	= require('uuid'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
@@ -32,12 +32,13 @@ if (config.prefix) {
 dataWriter.ready();
 
 function File(options, cb) {
-	const	tasks	= [],
+	const	logPrefix	= topLogPrefix + 'File() - ',
+		tasks	= [],
 		that	= this;
 
 	if (typeof options === 'function' || options === undefined) {
 		const err = new Error('First parameter must be an object.');
-		log.info('larvitviles: File() - ' + err.message);
+		log.info(logPrefix + err.message);
 		return cb(err);
 	}
 
@@ -69,12 +70,12 @@ function File(options, cb) {
 		that.uuid = lUtils.formatUuid(options.uuid);
 		if (that.uuid === false) {
 			const err = new Error('Invalid uuid supplied: "' + options.uuid + '"');
-			log.info('larvitviles: File() - ' + err.message);
+			log.info(logPrefix + err.message);
 			return cb(err);
 		}
 	} else {
 		const err = new Error('Options must contain either slug or uuid. Neither was provided.');
-		log.info('larvitviles: File() - ' + err.message);
+		log.info(logPrefix + err.message);
 		return cb(err);
 	}
 
@@ -98,19 +99,20 @@ function File(options, cb) {
 }
 
 File.prototype.loadFromDb = function loadFromDb(cb) {
-	const	tasks	= [],
+	const	logPrefix	= topLogPrefix + 'loadFromDb() - ',
+		tasks	= [],
 		that	= this;
 
 	if ( ! that.uuid) {
-		const e = new Error('uuid is not defined');
-		log.info(logPrefix + 'loadFromDb() - ' + e.message);
-		return cb(e);
+		const	err	= new Error('uuid is not defined');
+		log.info(logPrefix + err.message);
+		return cb(err);
 	}
 
 	if (exports.storagePath === null) {
-		const e = new Error('storagePath not set');
-		log.info(logPrefix + 'loadFromDb() - ' + e.message);
-		return cb(e);
+		const	err	= new Error('storagePath not set');
+		log.info(logPrefix + err.message);
+		return cb(err);
 	}
 
 	tasks.push(dataWriter.ready);
@@ -121,7 +123,7 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 
 			if (rows.length === 0) {
 				const err = new Error('No file found with uuid: ' + lUtils.formatUuid(that.uuid));
-				log.info('larvitfiles: File() - ' + err.message);
+				log.info(logPrefix + err.message);
 				return cb(err);
 			}
 
@@ -132,7 +134,7 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	});
 
 	tasks.push(function (cb) {
-		that.metadata = {};
+		that.metadata	= {};
 
 		if (that.uuid === undefined) {
 			cb();
@@ -157,7 +159,7 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 
 	tasks.push(function (cb) {
 		fs.readFile(exports.storagePath + '/' + that.uuid, function (err, data) {
-			if (err) log.warn(logPrefix + 'loadFromDb - Failed to load file data from disk: ' + err.message);
+			if (err) log.warn(logPrefix + 'Failed to load file data from disk, err: ' + err.message);
 			that.data = data;
 			cb();
 		});
@@ -167,19 +169,20 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 };
 
 File.prototype.rm = function rm(cb) {
-	const tasks = [],
+	const	logPrefix	= topLogPrefix + 'rm() - ',
+		tasks	= [],
 		that	= this;
 
 	if ( ! that.uuid) {
-		const e = new Error('uuid is not defined');
-		log.info(logPrefix + 'rm() - ' + e.message);
-		return cb(e);
+		const	err	= new Error('uuid is not defined');
+		log.info(logPrefix + err.message);
+		return cb(err);
 	}
 
 	if (exports.storagePath === null) {
-		const e = new Error('storagePath not set');
-		log.info(logPrefix + 'rm() - ' + e.message);
-		return cb(e);
+		const	err	= new Error('storagePath not set');
+		log.info(logPrefix + err.message);
+		return cb(err);
 	}
 
 	tasks.push(dataWriter.ready);
@@ -208,20 +211,21 @@ File.prototype.rm = function rm(cb) {
 		delete that.uuid;
 		delete that.slug;
 		delete that.data;
-		that.metadata = {};
+		that.metadata	= {};
 
 		cb();
 	});
 };
 
 File.prototype.save = function save(cb) {
-	const	tasks	= [],
+	const	logPrefix = topLogPrefix + 'save() - ',
+		tasks	= [],
 		that	= this;
 
 	if (exports.storagePath === null) {
-		const e = new Error('storagePath not set');
-		log.info(logPrefix + 'save() - ' + e.message);
-		return cb(e);
+		const err = new Error('storagePath not set');
+		log.info(logPrefix + err.message);
+		return cb(err);
 	}
 
 	tasks.push(dataWriter.ready);
@@ -272,7 +276,7 @@ Files.prototype.get = function get(cb) {
 	tasks.push(function (cb) {
 		const	dbFields	= [];
 
-		let sql = 'SELECT DISTINCT f.uuid, f.slug\nFROM larvitfiles_files f\n';
+		let sql = 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n';
 
 		if (Object.keys(that.filter.metadata).length !== 0) {
 			let	counter	= 0;
@@ -303,6 +307,12 @@ Files.prototype.get = function get(cb) {
 
 					sql += '\n';
 				}
+			}
+
+			if (counter > 60) {
+				const	err	= new Error('Can not select on more than a total of 60 metadata key value pairs due to database limitation in joins');
+				log.warn(logPrefix + err.message);
+				return cb(err);
 			}
 		}
 
@@ -373,9 +383,9 @@ Files.prototype.get = function get(cb) {
  * @param func cb(err, uuid) - uuid being a formatted string or boolean false
  */
 function getFileUuidBySlug(slug, cb) {
-	const tasks = [];
+	const	tasks	= [];
 
-	let result = false;
+	let	result	= false;
 
 	tasks.push(dataWriter.ready);
 

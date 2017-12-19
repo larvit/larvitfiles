@@ -14,6 +14,12 @@ let	filesLib;
 
 // Set up winston
 log.remove(log.transports.Console);
+log.add(log.transports.Console, {
+	'level':	'error',
+	'colorize':	true,
+	'timestamp':	true,
+	'json':	false
+});
 
 before(function (done) {
 	const	tasks	= [];
