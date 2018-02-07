@@ -118,7 +118,15 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
-		db.query('SELECT uuid, slug FROM larvitfiles_files WHERE uuid = ?', [lUtils.uuidToBuffer(that.uuid)], function (err, rows) {
+		const uuiBuffer = lUtils.uuidToBuffer(that.uuid);
+
+		if ( ! uuiBuffer) {
+			const err = new Error('Not a valid uuid: ' + that.uuid	);
+			log.info(logPrefix + err.message);
+			return cb(err);
+		}
+
+		db.query('SELECT uuid, slug FROM larvitfiles_files WHERE uuid = ?', [uuiBuffer], function (err, rows) {
 			if (err) return cb(err);
 
 			if (rows.length === 0) {
@@ -134,13 +142,21 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	});
 
 	tasks.push(function (cb) {
+		const uuiBuffer = lUtils.uuidToBuffer(that.uuid);
+
 		that.metadata	= {};
 
 		if (that.uuid === undefined) {
 			cb();
 		}
 
-		db.query('SELECT name, value FROM larvitfiles_files_metadata WHERE fileUuid = ?', [lUtils.uuidToBuffer(that.uuid)], function (err, rows) {
+		if ( ! uuiBuffer) {
+			const err = new Error('Not a valid uuid: ' + that.uuid	);
+			log.info(logPrefix + err.message);
+			return cb(err);
+		}
+
+		db.query('SELECT name, value FROM larvitfiles_files_metadata WHERE fileUuid = ?', [uuiBuffer], function (err, rows) {
 			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -377,8 +393,11 @@ Files.prototype.get = function get(cb) {
 
 		for (let i = 0; fileUuids[i] !== undefined; i ++) {
 			const	fileUuidBuf	= lUtils.uuidToBuffer(fileUuids[i]);
-			sql += '?,';
-			dbFields.push(fileUuidBuf);
+
+			if (fileUuidBuf) {
+				sql += '?,';
+				dbFields.push(fileUuidBuf);
+			}
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')';

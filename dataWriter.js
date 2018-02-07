@@ -236,11 +236,27 @@ function rm(params, deliveryTag, msgUuid) {
 	}
 
 	tasks.push(function (cb) {
-		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', [lUtils.uuidToBuffer(options.uuid)], cb);
+		const uuiBuffer = lUtils.uuidToBuffer(options.uuid);
+
+		if ( ! uuiBuffer) {
+			const err = new Error('Not a valid uuid: ' + options.uuid	);
+			log.info(logPrefix + err.message);
+			return cb(err);
+		}
+
+		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', [uuiBuffer], cb);
 	});
 
 	tasks.push(function (cb) {
-		db.query('DELETE FROM larvitfiles_files WHERE uuid = ?', [lUtils.uuidToBuffer(options.uuid)], cb);
+		const uuiBuffer = lUtils.uuidToBuffer(options.uuid);
+
+		if ( ! uuiBuffer) {
+			const err = new Error('Not a valid uuid: ' + options.uuid	);
+			log.info(logPrefix + err.message);
+			return cb(err);
+		}
+
+		db.query('DELETE FROM larvitfiles_files WHERE uuid = ?', [uuiBuffer], cb);
 	});
 
 	async.series(tasks, function (err) {
@@ -323,15 +339,28 @@ function save(params, deliveryTag, msgUuid) {
 
 	// Insert into files
 	tasks.push(function (cb) {
-		const	dbFields	= [lUtils.uuidToBuffer(options.uuid), options.slug],
-			sql	= 'INSERT INTO larvitfiles_files VALUES(?,?) ON DUPLICATE KEY UPDATE slug = VALUES(slug);';
+		const	uuiBuffer = lUtils.uuidToBuffer(options.uuid);
 
-		db.query(sql, dbFields, cb);
+		if ( ! uuiBuffer) {
+			const err = new Error('Not a valid uuid: ' + options.uuid	);
+			log.info(logPrefix + err.message);
+			return cb(err);
+		}
+
+		db.query('INSERT INTO larvitfiles_files VALUES(?,?) ON DUPLICATE KEY UPDATE slug = VALUES(slug)', [uuiBuffer, options.slug], cb);
 	});
 
 	// Delete metadata
 	tasks.push(function (cb) {
-		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', [lUtils.uuidToBuffer(options.uuid)], cb);
+		const	uuiBuffer = lUtils.uuidToBuffer(options.uuid);
+
+		if ( ! uuiBuffer) {
+			const err = new Error('Not a valid uuid: ' + options.uuid	);
+			log.info(logPrefix + err.message);
+			return cb(err);
+		}
+
+		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', [uuiBuffer], cb);
 	});
 
 	// Insert metadata
@@ -345,11 +374,18 @@ function save(params, deliveryTag, msgUuid) {
 				options.metadata[name] = [options.metadata[name]];
 			}
 
+
 			for (let i = 0; options.metadata[name][i] !== undefined; i ++) {
-				sql += '(?,?,?),';
-				dbFields.push(lUtils.uuidToBuffer(options.uuid));
-				dbFields.push(name);
-				dbFields.push(options.metadata[name][i]);
+				const	uuiBuffer = lUtils.uuidToBuffer(options.uuid);
+
+				if (uuiBuffer) {
+					sql += '(?,?,?),';
+					dbFields.push(uuiBuffer);
+					dbFields.push(name);
+					dbFields.push(options.metadata[name][i]);
+				} else {
+					log.info(logPrefix + 'Invalid uuid, skipping');
+				}
 			}
 		}
 
