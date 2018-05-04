@@ -19,6 +19,11 @@ const	lFiles	= require('larvitfiles'),
 
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
+// All below settings are optional, and their default is whats shown here
+lFiles.dataWriter.mode	= 'noSync'; // or 'slave' or 'master'
+lFiles.dataWriter.intercom	= new require('larvitamintercom')('loopback interface');
+lFiles.dataWriter.amsync	= {'host': null, 'minPort': null, 'maxPort': null};
+
 fs.readFile('/some/file.txt', function (err, data) {
 	let file;
 

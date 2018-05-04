@@ -9,7 +9,6 @@ const	EventEmitter	= require('events').EventEmitter,
 	lUtils	= require('larvitutils'),
 	amsync	= require('larvitamsync'),
 	async	= require('async'),
-	that	= this,
 	log	= require('winston'),
 	db	= require('larvitdb');
 
@@ -255,10 +254,10 @@ function rm(params, deliveryTag, msgUuid) {
 
 function runDumpServer(cb) {
 	const	options	= {
-			'exchange': exports.exchangeName + '_dataDump',
-			'host': that.options.amsync ? that.options.amsync.host : null,
-			'minPort': that.options.amsync ? that.options.amsync.minPort : null,
-			'maxPort': that.options.amsync ? that.options.amsync.maxPort : null
+			'exchange':	exports.exchangeName + '_dataDump',
+			'host':	exports.amsync ? exports.amsync.host : null,
+			'minPort':	exports.amsync ? exports.amsync.minPort : null,
+			'maxPort':	exports.amsync ? exports.amsync.maxPort : null
 		},
 		args	= [];
 
