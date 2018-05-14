@@ -34,7 +34,7 @@
   "devDependencies": {
     "freeport": "^1.0.5",
     "larvitbase": "^1.1.6",
-    "mocha": "^4.0.1",
+    "mocha": "^5.1.1",
     "mocha-eslint": "^4.1.0"
   }
 }
