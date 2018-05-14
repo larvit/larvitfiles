@@ -3,7 +3,8 @@
  */
 'use strict';
 
-const	lfs	= require('larvitfs'),
+const	Lfs	= require('larvitfs'),
+	lfs	= new Lfs(),
 	notFoundPath	= lfs.getPathSync('controllers/404.js'),
 	lFiles	= require(__dirname + '/../index.js');
 
