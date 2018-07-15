@@ -1,7 +1,8 @@
 'use strict';
 
 const	lFiles	= require(__dirname + '/../index.js'),
-	lfs	= require('larvitfs'),
+	Lfs	= require('larvitfs'),
+	lfs	= new Lfs(),
 	conf	= require(lfs.getPathSync('config/larvitfiles.json'));
 
 exports.run = function (req, res, cb) {
