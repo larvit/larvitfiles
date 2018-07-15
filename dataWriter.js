@@ -28,7 +28,7 @@ function listenToQueue(retries, cb) {
 	}
 
 	if (typeof cb !== 'function') {
-		cb = function (){};
+		cb	= function () {};
 	}
 
 	if (retries === undefined) {
@@ -125,7 +125,7 @@ function ready(retries, cb) {
 	}
 
 	if (typeof cb !== 'function') {
-		cb	= function (){};
+		cb	= function () {};
 	}
 
 	if (retries === undefined) {

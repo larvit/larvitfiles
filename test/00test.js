@@ -3,11 +3,10 @@
 const	freeport	= require('freeport'),
 	Intercom	= require('larvitamintercom'),
 	assert	= require('assert'),
-	tmpdir	= require('os').tmpdir(),
 	async	= require('async'),
 	utils	= require('larvitutils'),
-	uuid	= require('uuid'),
 	http	= require('http'),
+	App	= require('larvitbase'),
 	log	= require('winston'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
@@ -355,23 +354,18 @@ describe('Files', function () {
 
 		// Start server
 		tasks.push(function (cb) {
-			const App = require('larvitbase'),
-				ReqParser	= require('larvitreqparser'),
-				reqparser	= new ReqParser({'storage': 'memory', 'busboy': {}});
-			
-			new App({
-				'httpOptions': port,
-				'middleware': [
-					reqparser.parse.bind(reqparser),
-					require(__dirname + '/../controllers/getFile.js').run
-				]
-			}, cb);
+			let app = new App({
+				'httpOptions':	port,
+				'middlewares':	[require(__dirname + '/../controllers/getFile.js')]
+			});
+
+			app.start(cb);
 		});
 
 		// Get file content
 		tasks.push(function (cb) {
 			fs.readFile(__dirname + '/dummyFile.txt', function (err, data) {
-				fileData = data;
+				fileData	= data;
 				cb(err);
 			});
 		});
@@ -515,63 +509,5 @@ describe('Files', function () {
 		});
 
 		async.series(tasks, done);
-	});
-
-	it('should return an error when trying to instanciate a file that does not exis', function (done) {
-		const tasks = [],
-			filepath	= tmpdir + '/' + uuid.v4();
-
-		let fileUuid;
-
-		tasks.push(function (cb) {
-			fs.writeFile(filepath, 'asdlkfasdlf asdlfkad', cb);
-		});
-
-		tasks.push(function (cb) {
-			const file = new filesLib.File({
-				'slug':	'untz.txt',
-				'data':	fs.readFileSync(filepath),
-				'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']}
-			}, function (err) {
-				if (err) throw err;
-
-				file.save(function (err) {
-					if (err) throw err;
-
-					fileUuid = file.uuid;
-					assert.deepEqual(file.uuid,	utils.formatUuid(file.uuid));
-					assert.deepEqual(file.metadata.metadata1,	['metavalue1']);
-					assert.deepEqual(file.metadata.metadata2,	['multiple', 'values']);
-					assert.deepEqual(Object.keys(file.metadata).length,	2);
-					assert.deepEqual(file.slug,	'untz.txt');
-					assert.deepEqual(file.data, new Buffer('asdlkfasdlf asdlfkad'));
-
-					cb();
-				});
-			});
-		});
-
-		tasks.push(function (cb) {
-			fs.unlink('/tmp/larvitfiles/' + fileUuid, cb);
-		});
-
-		tasks.push(function (cb) {
-			const file = new filesLib.File({'uuid': utils.uuidToBuffer(fileUuid)}, function (err) {
-				assert.notEqual(err, false);
-				assert.notEqual(file, false);
-				assert.strictEqual(file.uuid, fileUuid);
-				assert.strictEqual(file.data, undefined);
-				cb();
-			});
-		});
-
-		async.series(tasks, done);
-	});
-
-	it('should return an error when a file does not exist', function (done) {
-		new filesLib.File({'uuid': utils.uuidToBuffer('635d2572-51f8-11e8-9c2d-fa7ae01bbebc')}, function (err) {
-			assert.notEqual(err, false);
-			done();
-		});
 	});
 });

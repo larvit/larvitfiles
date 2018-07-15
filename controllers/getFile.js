@@ -6,13 +6,16 @@
 const	Lfs	= require('larvitfs'),
 	lfs	= new Lfs(),
 	notFoundPath	= lfs.getPathSync('controllers/404.js'),
-	lFiles	= require(__dirname + '/../index.js');
+	lFiles	= require(__dirname + '/../index.js'),
+	url	= require('url');
 
-exports.run = function (req, res, cb) {
+function run(req, res, cb) {
+	req.urlParsed	= url.parse(req.url);
+
 	const file = new lFiles.File({
 		'slug': decodeURIComponent(req.urlParsed.pathname.substring(lFiles.prefix.length))
 	}, function (err) {
-		if (err) { cb(err, req, res, {}); return; }
+		if (err) return cb(err, req, res, {});
 
 		if (file.uuid === undefined) {
 			// 404!!!
@@ -23,4 +26,8 @@ exports.run = function (req, res, cb) {
 		res.writeHead(200, 'application/octet-stream');
 		res.end(file.data);
 	});
-};
+}
+
+run.run	= run; // Backwards compatible with larvitbase 1.x
+
+exports = module.exports = run;

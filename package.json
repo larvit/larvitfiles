@@ -1,6 +1,6 @@
 {
   "name": "larvitfiles",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Storage of files with an API and database to use in web environments",
   "main": "index.js",
   "scripts": {
@@ -28,12 +28,13 @@
     "larvitdbmigration": "^2.0.0",
     "larvitfs": "^2.0.4",
     "larvitutils": "^1.1.1",
+    "mkdirp": "^0.5.1",
     "uuid": "^3.0.0",
     "winston": "^2.2.0"
   },
   "devDependencies": {
     "freeport": "^1.0.5",
-    "larvitbase": "^2.1.1",
+    "larvitbase": "^3.0.0",
     "larvitreqparser": "^0.1.2",
     "mocha": "^5.1.1",
     "mocha-eslint": "^4.1.0"

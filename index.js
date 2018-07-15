@@ -4,6 +4,7 @@ const	topLogPrefix	= 'larvitfiles: ./index.js: ',
 	dataWriter	= require(__dirname + '/dataWriter.js'),
 	uuidLib	= require('uuid'),
 	lUtils	= require('larvitutils'),
+	mkdirp	= require('mkdirp'),
 	async	= require('async'),
 	log	= require('winston'),
 	fs	= require('fs'),
@@ -23,6 +24,15 @@ if (config.storagePath !== undefined) {
 	exports.storagePath	= process.cwd() + '/larvitfiles';
 }
 
+// Make sure the storage path exists
+mkdirp(exports.storagePath, function (err) {
+	if (err) {
+		log.error(topLogPrefix + 'Could not create folder: "' + exports.storagePath + '" err: ' + err.message);
+	} else {
+		log.debug(topLogPrefix + 'Folder "' + exports.storagePath + '" created if it did not already exist');
+	}
+});
+
 if (config.prefix) {
 	exports.prefix	= config.prefix;
 } else {
@@ -37,13 +47,13 @@ function File(options, cb) {
 		that	= this;
 
 	if (typeof options === 'function' || options === undefined) {
-		const err = new Error('First parameter must be an object.');
+		const	err	= new Error('First parameter must be an object.');
 		log.info(logPrefix + err.message);
 		return cb(err);
 	}
 
 	if (cb === undefined) {
-		cb = function () {};
+		cb	= function () {};
 	}
 
 	// There must always be a metadata object
@@ -67,14 +77,14 @@ function File(options, cb) {
 			});
 		});
 	} else if (options.uuid) {
-		that.uuid = lUtils.formatUuid(options.uuid);
+		that.uuid	= lUtils.formatUuid(options.uuid);
 		if (that.uuid === false) {
-			const err = new Error('Invalid uuid supplied: "' + options.uuid + '"');
+			const	err	= new Error('Invalid uuid supplied: "' + options.uuid + '"');
 			log.info(logPrefix + err.message);
 			return cb(err);
 		}
 	} else {
-		const err = new Error('Options must contain either slug or uuid. Neither was provided.');
+		const	err	= new Error('Options must contain either slug or uuid. Neither was provided.');
 		log.info(logPrefix + err.message);
 		return cb(err);
 	}
@@ -118,10 +128,10 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
-		const uuiBuffer = lUtils.uuidToBuffer(that.uuid);
+		const	uuiBuffer	= lUtils.uuidToBuffer(that.uuid);
 
 		if ( ! uuiBuffer) {
-			const err = new Error('Not a valid uuid: ' + that.uuid	);
+			const	err	= new Error('Not a valid uuid: ' + that.uuid	);
 			log.info(logPrefix + err.message);
 			return cb(err);
 		}
@@ -130,7 +140,7 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 			if (err) return cb(err);
 
 			if (rows.length === 0) {
-				const err = new Error('No file found with uuid: ' + lUtils.formatUuid(that.uuid));
+				const	err	= new Error('No file found with uuid: ' + lUtils.formatUuid(that.uuid));
 				log.info(logPrefix + err.message);
 				return cb(err);
 			}
@@ -142,16 +152,14 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	});
 
 	tasks.push(function (cb) {
-		const uuiBuffer = lUtils.uuidToBuffer(that.uuid);
+		const	uuiBuffer	= lUtils.uuidToBuffer(that.uuid);
 
 		that.metadata	= {};
 
-		if (that.uuid === undefined) {
-			cb();
-		}
+		if (that.uuid === undefined) return cb();
 
 		if ( ! uuiBuffer) {
-			const err = new Error('Not a valid uuid: ' + that.uuid	);
+			const	err	= new Error('Not a valid uuid: ' + that.uuid	);
 			log.info(logPrefix + err.message);
 			return cb(err);
 		}
@@ -176,8 +184,8 @@ File.prototype.loadFromDb = function loadFromDb(cb) {
 	tasks.push(function (cb) {
 		fs.readFile(exports.storagePath + '/' + that.uuid, function (err, data) {
 			if (err) log.warn(logPrefix + 'Failed to load file data from disk, err: ' + err.message);
-			that.data = data;
-			cb();
+			that.data	= data;
+			cb(err);
 		});
 	});
 
@@ -218,7 +226,12 @@ File.prototype.rm = function rm(cb) {
 	});
 
 	tasks.push(function (cb) {
-		fs.unlink(exports.storagePath + '/' + that.uuid, cb);
+		const	fullPath	= exports.storagePath + '/' + that.uuid;
+
+		fs.unlink(fullPath, function (err) {
+			if (err) log.warn(logPrefix + 'Could not unlink file: "' + fullPath + '", err: ' + err.message);
+			cb(err);
+		});
 	});
 
 	async.series(tasks, function (err) {
@@ -234,12 +247,12 @@ File.prototype.rm = function rm(cb) {
 };
 
 File.prototype.save = function save(cb) {
-	const	logPrefix = topLogPrefix + 'save() - ',
+	const	logPrefix	= topLogPrefix + 'save() - ',
 		tasks	= [],
 		that	= this;
 
 	if (exports.storagePath === null) {
-		const err = new Error('storagePath not set');
+		const	err	= new Error('storagePath not set');
 		log.info(logPrefix + err.message);
 		return cb(err);
 	}
@@ -247,12 +260,12 @@ File.prototype.save = function save(cb) {
 	tasks.push(dataWriter.ready);
 
 	tasks.push(function (cb) {
-		const options	= {'exchange': dataWriter.exchangeName},
+		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
 		message.action	= 'save';
 		message.params	= {};
-		message.params.data	= {
+		message.params.data = {
 			'uuid':	that.uuid,
 			'slug':	that.slug,
 			'metadata':	that.metadata
@@ -265,7 +278,12 @@ File.prototype.save = function save(cb) {
 	});
 
 	tasks.push(function (cb) {
-		fs.writeFile(exports.storagePath + '/' + that.uuid, that.data, cb);
+		const	fullPath	= exports.storagePath + '/' + that.uuid;
+
+		fs.writeFile(fullPath, that.data, function (err) {
+			if (err) log.warn(logPrefix + 'Could not write file: "' + fullPath + '", err: ' + err.message);
+			cb(err);
+		});
 	});
 
 	tasks.push(function (cb) {
@@ -292,7 +310,7 @@ Files.prototype.get = function get(cb) {
 	tasks.push(function (cb) {
 		const	dbFields	= [];
 
-		let sql = 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n';
+		let	sql	= 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n';
 
 		if (that.filter.operator !== 'or') {
 			that.filter.operator	= 'and';
@@ -305,7 +323,7 @@ Files.prototype.get = function get(cb) {
 				let	values	= that.filter.metadata[name];
 
 				if ( ! (values instanceof Array)) {
-					values = [values];
+					values	= [values];
 				}
 
 				for (let i = 0; values[i] !== undefined; i ++) {
@@ -387,7 +405,7 @@ Files.prototype.get = function get(cb) {
 	tasks.push(function (cb) {
 		const	dbFields	= [];
 
-		let sql = 'SELECT * FROM larvitfiles_files_metadata WHERE fileUuid IN (';
+		let	sql	= 'SELECT * FROM larvitfiles_files_metadata WHERE fileUuid IN (';
 
 		if (fileUuids.length === 0) return cb();
 
@@ -448,7 +466,7 @@ function getFileUuidBySlug(slug, cb) {
 				return cb(null, false);
 			}
 
-			result = lUtils.formatUuid(rows[0].uuid);
+			result	= lUtils.formatUuid(rows[0].uuid);
 
 			cb();
 		});
