@@ -2,7 +2,8 @@
 
 const	lFiles	= require(__dirname + '/../index.js'),
 	async	= require('async'),
-	lfs	= require('larvitfs'),
+	Lfs	= require('larvitfs'),
+	lfs	= new Lfs(),
 	conf	= require(lfs.getPathSync('config/larvitfiles.json')),
 	fs	= require('fs');
 
