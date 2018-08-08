@@ -297,6 +297,9 @@ function Files() {
 	this.filter = {
 		'metadata':	{}
 	};
+
+	this.order = {
+	};
 }
 
 Files.prototype.get = function get(cb) {
@@ -310,10 +313,15 @@ Files.prototype.get = function get(cb) {
 	tasks.push(function (cb) {
 		const	dbFields	= [];
 
-		let	sql	= 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n';
+		let	sql	= 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n',
+			sqlOrder;
 
 		if (that.filter.operator !== 'or') {
 			that.filter.operator	= 'and';
+		}
+
+		if (that.order.dir !== 'asc') {
+			that.order.dir	= 'desc';
 		}
 
 		if (that.filter.operator === 'and' && Object.keys(that.filter.metadata).length !== 0) {
@@ -354,6 +362,22 @@ Files.prototype.get = function get(cb) {
 			}
 		}
 
+		if (that.order.column) {
+			if (that.order.column.startsWith('metadata:')) {
+				const metadataName = that.order.column.substring(9);
+				sql += 'LEFT JOIN larvitfiles_files_metadata ordm ON f.uuid = ordm.fileUuid AND ordm.name = ?';
+				sqlOrder = 'ORDER BY ordm.value';
+
+				dbFields.push(metadataName);
+			} else {
+				switch (that.order.column) {
+				case 'slug':
+					sqlOrder = 'ORDER BY f.slug';
+					break;
+				}
+			}
+		}
+
 		if (that.filter.operator === 'or' && Object.keys(that.filter.metadata).length !== 0) {
 			sql += 'WHERE f.uuid IN (SELECT fileUuid FROM larvitfiles_files_metadata WHERE ';
 
@@ -380,6 +404,10 @@ Files.prototype.get = function get(cb) {
 
 			sql = sql.substring(0, sql.length - 4);
 			sql += ')\n';
+		}
+
+		if (sqlOrder) {
+			sql += sqlOrder + ' ' + that.order.dir + '\n';
 		}
 
 		db.query(sql, dbFields, function (err, rows) {
