@@ -21,22 +21,20 @@
   "homepage": "https://github.com/larvit/larvitfiles#readme",
   "dependencies": {
     "async": "^2.0.1",
-    "check-object-key": "^0.1.2",
-    "larvitamintercom": "^0.2.5",
-    "larvitamsync": "^0.5.1",
-    "larvitdb": "^1.2.2",
-    "larvitdbmigration": "^2.0.0",
+    "larvitamintercom": "^0.3.0",
+    "larvitamsync": "^0.7.2",
+    "larvitdbmigration": "^4.0.1",
     "larvitfs": "^2.0.4",
-    "larvitutils": "^1.1.1",
+    "larvitutils": "^2.0.0",
     "mkdirp": "^0.5.1",
-    "uuid": "^3.0.0",
-    "winston": "^2.2.0"
+    "uuid": "^3.0.0"
   },
   "devDependencies": {
     "freeport": "^1.0.5",
+    "larvitdb": "^2.1.0",
     "larvitbase": "^3.0.0",
     "larvitreqparser": "^0.1.2",
-    "mocha": "^5.1.1",
+    "mocha": "^5.2.0",
     "mocha-eslint": "^4.1.0"
   }
 }

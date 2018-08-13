@@ -6,15 +6,14 @@
 const	Lfs	= require('larvitfs'),
 	lfs	= new Lfs(),
 	notFoundPath	= lfs.getPathSync('controllers/404.js'),
-	lFiles	= require(__dirname + '/../index.js'),
 	url	= require('url');
 
 function run(req, res, cb) {
 	req.urlParsed	= url.parse(req.url);
 
-	const file = new lFiles.File({
-		'slug': decodeURIComponent(req.urlParsed.pathname.substring(lFiles.prefix.length))
-	}, function (err) {
+	req.fileLib.file({
+		'slug': decodeURIComponent(req.urlParsed.pathname.substring(req.fileLib.options.prefix))
+	}, function (err, file) {
 		if (err) return cb(err, req, res, {});
 
 		if (file.uuid === undefined) {

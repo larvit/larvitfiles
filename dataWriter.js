@@ -1,23 +1,31 @@
 'use strict';
 
 const	EventEmitter	= require('events').EventEmitter,
-	eventEmitter	= new EventEmitter(),
 	topLogPrefix	= 'larvitfiles: dataWriter.js: ',
 	DbMigration	= require('larvitdbmigration'),
-	checkKey	= require('check-object-key'),
-	Intercom	= require('larvitamintercom'),
-	lUtils	= require('larvitutils'),
+	lUtils	= new (require('larvitutils'))(),
 	amsync	= require('larvitamsync'),
-	async	= require('async'),
-	log	= require('winston'),
-	db	= require('larvitdb');
+	async	= require('async');
 
-let	readyInProgress	= false,
-	isReady	= false;
+function DataWriter(options, cb) {
+	const	that	= this;
 
-function listenToQueue(retries, cb) {
+	that.readyInProgress	= false;
+	that.isReady	= false;
+
+	for (const key of Object.keys(options)) {
+		that[key]	= options[key];
+	}
+
+	that.emitter	= new EventEmitter();
+
+	that.listenToQueue(cb);
+}
+
+DataWriter.prototype.listenToQueue = function listenToQueue(retries, cb) {
 	const	logPrefix	= topLogPrefix + 'listenToQueue() - ',
-		options	= {'exchange': exports.exchangeName},
+		that	= this,
+		options	= {'exchange': that.exchangeName},
 		tasks	= [];
 
 	let	listenMethod;
@@ -36,87 +44,73 @@ function listenToQueue(retries, cb) {
 	}
 
 	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'mode',
-			'validValues':	['master', 'slave', 'noSync'],
-			'default':	'noSync'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'intercom',
-			'default':	new Intercom('loopback interface'),
-			'defaultLabel':	'loopback interface'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		if (exports.mode === 'master') {
+		if (that.mode === 'master') {
 			listenMethod	= 'consume';
 			options.exclusive	= true;	// It is important no other client tries to sneak
 			// out messages from us, and we want "consume"
 			// since we want the queue to persist even if this
 			// minion goes offline.
-		} else if (exports.mode === 'slave' || exports.mode === 'noSync') {
+		} else if (that.mode === 'slave' || that.mode === 'noSync') {
 			listenMethod = 'subscribe';
 		} else {
-			const	err	= new Error('Invalid exports.mode. Must be either "master", "slave" or "noSync"');
-			log.error(logPrefix + err.message);
+			const	err	= new Error('Invalid that.mode. Must be either "master", "slave" or "noSync"');
+			that.log.error(logPrefix + err.message);
 			return cb(err);
 		}
 
-		log.info(logPrefix + 'listenMethod: ' + listenMethod);
+		that.log.info(logPrefix + 'listenMethod: ' + listenMethod);
 
 		cb();
 	});
 
 
 	tasks.push(function (cb) {
-		exports.intercom.ready(cb);
+		that.intercom.ready(cb);
 	});
 
 	tasks.push(function (cb) {
-		exports.intercom[listenMethod](options, function (message, ack, deliveryTag) {
-			exports.ready(function (err) {
-				ack(err); // Ack first, if something goes wrong we log it and handle it manually
+		that.intercom.ready(function (err) {
+			if (err) {
+				that.log.error(logPrefix + 'intercom.ready() err: ' + err.message);
+				return;
+			}
 
-				if (err) {
-					log.error(logPrefix + 'intercom.' + listenMethod + '() - exports.ready() returned err: ' + err.message);
-					return;
-				}
+			that.intercom[listenMethod](options, function (message, ack, deliveryTag) {
+				that.ready(function (err) {
+					ack(err); // Ack first, if something goes wrong we log it and handle it manually
 
-				if (typeof message !== 'object') {
-					log.error(logPrefix + 'intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
-					return;
-				}
+					if (err) {
+						that.log.error(logPrefix + 'intercom.' + listenMethod + '() - that.ready() returned err: ' + err.message);
+						return;
+					}
 
-				if (typeof exports[message.action] === 'function') {
-					exports[message.action](message.params, deliveryTag, message.uuid);
-				} else {
-					log.warn(logPrefix + 'intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
-				}
-			});
-		}, cb);
+					if (typeof message !== 'object') {
+						that.log.error(logPrefix + 'intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
+						return;
+					}
+
+					if (typeof that[message.action] === 'function') {
+						that[message.action](message.params, deliveryTag, message.uuid);
+					} else {
+						that.log.warn(logPrefix + 'intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
+					}
+				});
+			}, cb);
+		});
+	});
+
+	// Run the ready function
+	tasks.push(function (cb) {
+		that.ready(cb);
 	});
 
 	async.series(tasks, cb);
-}
-// Run listenToQueue as soon as all I/O is done, this makes sure the exports.mode can be set
-// by the application before listening commences
-setImmediate(listenToQueue);
+};
 
 // This is ran before each incoming message on the queue is handeled
-function ready(retries, cb) {
+DataWriter.prototype.ready = function ready(retries, cb) {
 	const	logPrefix	= topLogPrefix + 'ready() - ',
+		that	= this,
 		tasks	= [];
 
 	if (typeof retries === 'function') {
@@ -132,45 +126,21 @@ function ready(retries, cb) {
 		retries	= 0;
 	}
 
-	if (isReady === true) return cb();
+	if (that.isReady === true) return cb();
 
-	if (readyInProgress === true) {
-		eventEmitter.on('ready', cb);
+	if (that.readyInProgress === true) {
+		that.emitter.on('ready', cb);
 		return;
 	}
 
-	readyInProgress = true;
+	that.readyInProgress = true;
 
 	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'mode',
-			'validValues':	['master', 'slave', 'noSync'],
-			'default':	'noSync'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'intercom',
-			'default':	new Intercom('loopback interface'),
-			'defaultLabel':	'loopback interface'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		if (exports.mode === 'slave') {
-			log.verbose(logPrefix + 'exports.mode: "' + exports.mode + '", so read');
+		if (that.mode === 'slave') {
+			that.log.verbose(logPrefix + 'that.mode: "' + that.mode + '", so read');
 			amsync.mariadb({
-				'exchange':	exports.exchangeName + '_dataDump',
-				'intercom':	exports.intercom
+				'exchange':	that.exchangeName + '_dataDump',
+				'intercom':	that.intercom
 			}, cb);
 		} else {
 			cb();
@@ -183,15 +153,16 @@ function ready(retries, cb) {
 
 		let	dbMigration;
 
-		options.dbType	= 'larvitdb';
-		options.dbDriver	= db;
+		options.dbType	= 'mariadb';
+		options.dbDriver	= that.db;
 		options.tableName	= 'larvitfiles_db_version';
 		options.migrationScriptsPath	= __dirname + '/dbmigration';
+		options.storagePath	= that.storagePath;
 		dbMigration	= new DbMigration(options);
 
 		dbMigration.run(function (err) {
 			if (err) {
-				log.error(logPrefix + 'Database error: ' + err.message);
+				that.log.error(logPrefix + 'Database error: ' + err.message);
 			}
 
 			cb(err);
@@ -201,25 +172,26 @@ function ready(retries, cb) {
 	async.series(tasks, function (err) {
 		if (err) return;
 
-		isReady	= true;
-		eventEmitter.emit('ready');
+		that.isReady	= true;
+		that.emitter.emit('ready');
 
-		if (exports.mode === 'both' || exports.mode === 'master') {
-			runDumpServer(cb);
+		if (that.mode === 'both' || that.mode === 'master') {
+			that.runDumpServer(cb);
 		} else {
 			cb();
 		}
 	});
-}
+};
 
-function rm(params, deliveryTag, msgUuid) {
+DataWriter.prototype.rm = function rm(params, deliveryTag, msgUuid) {
 	const	logPrefix	= topLogPrefix + 'rm() - ',
+		that	= this,
 		options	= params.data,
 		tasks	= [];
 
 	if (options.uuid === undefined) {
 		const err = new Error('No uuid set, can not remove file');
-		log.info(logPrefix + err.message);
+		that.log.info(logPrefix + err.message);
 		return cb(err);
 	}
 
@@ -228,11 +200,11 @@ function rm(params, deliveryTag, msgUuid) {
 
 		if ( ! uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid	);
-			log.info(logPrefix + err.message);
+			that.log.info(logPrefix + err.message);
 			return cb(err);
 		}
 
-		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', [uuiBuffer], cb);
+		that.db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', [uuiBuffer], cb);
 	});
 
 	tasks.push(function (cb) {
@@ -240,42 +212,43 @@ function rm(params, deliveryTag, msgUuid) {
 
 		if ( ! uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid	);
-			log.info(logPrefix + err.message);
+			that.log.info(logPrefix + err.message);
 			return cb(err);
 		}
 
-		db.query('DELETE FROM larvitfiles_files WHERE uuid = ?', [uuiBuffer], cb);
+		that.db.query('DELETE FROM larvitfiles_files WHERE uuid = ?', [uuiBuffer], cb);
 	});
 
 	async.series(tasks, function (err) {
-		exports.emitter.emit(msgUuid, err);
+		that.emitter.emit(msgUuid, err);
 	});
 };
 
-function runDumpServer(cb) {
-	const	options	= {
-			'exchange':	exports.exchangeName + '_dataDump',
-			'host':	exports.amsync ? exports.amsync.host : null,
-			'minPort':	exports.amsync ? exports.amsync.minPort : null,
-			'maxPort':	exports.amsync ? exports.amsync.maxPort : null
+DataWriter.prototype.runDumpServer = function runDumpServer(cb) {
+	const	that	= this,
+		options	= {
+			'exchange':	that.exchangeName + '_dataDump',
+			'host':	that.amsync ? that.amsync.host : null,
+			'minPort':	that.amsync ? that.amsync.minPort : null,
+			'maxPort':	that.amsync ? that.amsync.maxPort : null
 		},
 		args	= [];
 
-	if (db.conf.host) {
+	if (that.db.conf.host) {
 		args.push('-h');
-		args.push(db.conf.host);
+		args.push(that.db.conf.host);
 	}
 
 	args.push('-u');
-	args.push(db.conf.user);
+	args.push(that.db.conf.user);
 
-	if (db.conf.password) {
+	if (that.db.conf.password) {
 		args.push('-p' + db.conf.password);
 	}
 
 	args.push('--single-transaction');
 	args.push('--hex-blob');
-	args.push(db.conf.database);
+	args.push(that.db.conf.database);
 
 	// Tables
 	args.push('larvitfiles_db_version');
@@ -288,25 +261,26 @@ function runDumpServer(cb) {
 	};
 
 	options['Content-Type']	= 'application/sql';
-	options.intercom	= exports.intercom;
+	options.intercom	= that.intercom;
 
 	new amsync.SyncServer(options, cb);
-}
+};
 
-function save(params, deliveryTag, msgUuid) {
+DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 	const	logPrefix	= topLogPrefix + 'save() - ',
+		that	= this,
 		options	= params.data,
 		tasks	= [];
 
 	if (options.slug === undefined) {
 		const err = new Error('Slug must be set to save to database');
-		log.info(logPrefix + err.message);
+		that.log.info(logPrefix + err.message);
 		return cb(err);
 	}
 
 	// Check validity of slug and uuid
 	tasks.push(function (cb) {
-		db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [options.slug], function (err, rows) {
+		that.db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [options.slug], function (err, rows) {
 			let	uuid	= null;
 
 			if (err) return cb(err);
@@ -317,7 +291,7 @@ function save(params, deliveryTag, msgUuid) {
 
 			if (uuid !== null && uuid !== options.uuid) {
 				const	err	= new Error('Slug "' + options.slug + '" is take by another file');
-				log.info(logPrefix + err.message);
+				that.log.info(logPrefix + err.message);
 				return cb(err);
 			}
 
@@ -331,11 +305,11 @@ function save(params, deliveryTag, msgUuid) {
 
 		if ( ! uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid	);
-			log.info(logPrefix + err.message);
+			that.log.info(logPrefix + err.message);
 			return cb(err);
 		}
 
-		db.query('INSERT INTO larvitfiles_files VALUES(?,?) ON DUPLICATE KEY UPDATE slug = VALUES(slug)', [uuiBuffer, options.slug], cb);
+		that.db.query('INSERT INTO larvitfiles_files VALUES(?,?) ON DUPLICATE KEY UPDATE slug = VALUES(slug)', [uuiBuffer, options.slug], cb);
 	});
 
 	// Delete metadata
@@ -344,11 +318,11 @@ function save(params, deliveryTag, msgUuid) {
 
 		if ( ! uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid	);
-			log.info(logPrefix + err.message);
+			that.log.info(logPrefix + err.message);
 			return cb(err);
 		}
 
-		db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', [uuiBuffer], cb);
+		that.db.query('DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', [uuiBuffer], cb);
 	});
 
 	// Insert metadata
@@ -372,7 +346,7 @@ function save(params, deliveryTag, msgUuid) {
 					dbFields.push(name);
 					dbFields.push(options.metadata[name][i]);
 				} else {
-					log.info(logPrefix + 'Invalid uuid, skipping');
+					that.log.info(logPrefix + 'Invalid uuid, skipping');
 				}
 			}
 		}
@@ -382,17 +356,12 @@ function save(params, deliveryTag, msgUuid) {
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ';';
-		db.query(sql, dbFields, cb);
+		that.db.query(sql, dbFields, cb);
 	});
 
 	async.series(tasks, function (err) {
-		exports.emitter.emit(msgUuid, err);
+		that.emitter.emit(msgUuid, err);
 	});
 };
 
-exports.emitter	= new EventEmitter();
-exports.exchangeName	= 'larvitfiles';
-exports.options	= undefined;
-exports.ready	= ready;
-exports.rm	= rm;
-exports.save	= save;
+exports = module.exports = DataWriter;

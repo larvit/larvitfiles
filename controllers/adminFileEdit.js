@@ -1,7 +1,6 @@
 'use strict';
 
-const	lFiles	= require(__dirname + '/../index.js'),
-	async	= require('async'),
+const	async	= require('async'),
 	Lfs	= require('larvitfs'),
 	lfs	= new Lfs(),
 	conf	= require(lfs.getPathSync('config/larvitfiles.json')),
@@ -18,7 +17,10 @@ exports.run = function (req, res, cb) {
 
 	if (data.global.urlParsed.query.uuid !== undefined) {
 		tasks.push(function (cb) {
-			file	= new lFiles.File({'uuid': data.global.urlParsed.query.uuid}, cb);
+			req.fileLib.file({'uuid': data.global.urlParsed.query.uuid}, function (err, fajl) {
+				file = fajl;
+				cb(err);
+			});
 		});
 	}
 
@@ -56,7 +58,7 @@ exports.run = function (req, res, cb) {
 			if (data.global.errors.length !== 0) return cb();
 
 			if ((file !== undefined && file.slug !== newFileData.slug) || file === undefined) {
-				lFiles.getFileUuidBySlug(newFileData.slug, function (err, result) {
+				req.fileLib.getFileUuidBySlug(newFileData.slug, function (err, result) {
 					if (err) return cb(err);
 
 					if ((result !== false && file !== undefined && file.uuid !== result) || (file === undefined && result !== false)) {
@@ -98,18 +100,20 @@ exports.run = function (req, res, cb) {
 			if (data.global.errors.length !== 0) return cb();
 
 			if (file === undefined) {
-				file	= new lFiles.File(newFileData, cb);
-				return;
+				req.fileLib.file(newFileData, function (err, fajl) {
+					file = fajl;
+					cb(err);
+				});
+			} else {
+				file.slug	= newFileData.slug;
+				file.metadata	= newFileData.metadata;
+
+				if (newFileData.data) {
+					file.data	= newFileData.data;
+				}
+
+				cb();
 			}
-
-			file.slug	= newFileData.slug;
-			file.metadata	= newFileData.metadata;
-
-			if (newFileData.data) {
-				file.data	= newFileData.data;
-			}
-
-			cb();
 		});
 
 		tasks.push(function (cb) {

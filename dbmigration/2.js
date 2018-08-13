@@ -1,28 +1,28 @@
 'use strict';
 
 const	logPrefix	= 'larvitfiles: ./dbmigration/2.js: ',
-	filesLib	= require(__dirname + '/../index.js'),
-	lUtils	= require('larvitutils'),
+	lUtils	= new (require('larvitutils'))(),
 	async	= require('async'),
 	log	= require('winston'),
 	fs	= require('fs');
 
 exports = module.exports = function (cb) {
 	const	tasks	= [],
+		that	= this,
 		db	= this.options.dbDriver;
 
 	let	files;
 
-	if (filesLib.storagePath === null) {
+	if (that.options.storagePath === null) {
 		const	err	= new Error('storagePath not set on larvitfiles');
 		log.warn(logPrefix + err.message);
 		throw err;
 	}
 
-	if ( ! fs.existsSync(filesLib.storagePath)) {
+	if ( ! fs.existsSync(that.options.storagePath)) {
 		tasks.push(function (cb) {
-			log.info(logPrefix + 'storagePath "' + filesLib.storagePath + '" does not exist, creating');
-			fs.mkdir(filesLib.storagePath, cb);
+			log.info(logPrefix + 'storagePath "' + that.options.storagePath + '" does not exist, creating');
+			fs.mkdir(that.options.storagePath, cb);
 		});
 	}
 
@@ -48,7 +48,7 @@ exports = module.exports = function (cb) {
 						return cb();
 					}
 
-					fs.writeFile(filesLib.storagePath + '/' + lUtils.formatUuid(file.uuid), result[0].data, cb);
+					fs.writeFile(that.options.storagePath + '/' + lUtils.formatUuid(file.uuid), result[0].data, cb);
 				});
 			});
 		}
