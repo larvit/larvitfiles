@@ -138,7 +138,7 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 	tasks.push(function (cb) {
 		if (that.mode === 'slave') {
 			that.log.verbose(logPrefix + 'that.mode: "' + that.mode + '", so read');
-			amsync.mariadb({
+			new amsync.SyncClient({
 				'exchange':	that.exchangeName + '_dataDump',
 				'intercom':	that.intercom
 			}, cb);
