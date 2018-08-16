@@ -12,7 +12,7 @@ function Files(options) {
 	};
 
 	if ( ! options.db) throw new Error('Requried option db is not set');
-	this.db = options.db;
+	this.db	= options.db;
 }
 
 Files.prototype.get = function get(cb) {

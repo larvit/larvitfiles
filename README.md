@@ -10,22 +10,38 @@ npm i larvitfiles;
 
 ## Usage
 
-### Add file from buffer
+### Load library
 
 ```javascript
-const	lFiles	= require('larvitfiles'),
+const	LFiles	= require('larvitfiles'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
+let	lFiles;
+
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
-// All below settings are optional, and their default is whats shown here
-lFiles.dataWriter.mode	= 'noSync'; // or 'slave' or 'master'
-lFiles.dataWriter.intercom	= new require('larvitamintercom')('loopback interface');
-lFiles.dataWriter.amsync	= {'host': null, 'minPort': null, 'maxPort': null};
+lFiles = new LFiles({
+	'db':	db,
+	'storagePath':	'/tmp/larvitfiles',
 
+	// All below settings are optional, and their default is whats shown here
+	'log':	new (new (require('larvitutils'))).Log(),
+	'mode':	'noSync',	// or 'slave' or 'master'
+	'intercom':	new (require('larvitamintercom'))('loopback interface'),
+	'exchangeName':	'larvitfiles',
+	'prefix':	'/dbfiles/',
+	'amsync_host':	null,
+	'amsync_minPort':	null,
+	'amzync_maxPort':	null
+});
+```
+
+### Add file from buffer
+
+```javascript
 fs.readFile('/some/file.txt', function (err, data) {
-	let file;
+	let	file;
 
 	if (err) throw err;
 
@@ -50,13 +66,6 @@ fs.readFile('/some/file.txt', function (err, data) {
 ### Get file from storage
 
 ```javascript
-const	lFiles	= require('larvitfiles'),
-	db	= require('larvitdb');
-
-let file;
-
-db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
-
 file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 	if (err) throw err;
 
@@ -70,13 +79,6 @@ file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 ### Remove a file from storage
 
 ```javascript
-const	lFiles	= require('larvitfiles'),
-	db	= require('larvitdb');
-
-let file;
-
-db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
-
 file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 	if (err) throw err;
 
@@ -93,14 +95,7 @@ file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 #### List all files
 
 ```javascript
-const	lFiles	= require('larvitfiles'),
-	db	= require('larvitdb');
-
-let files;
-
-db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
-
-files = new lFiles.Files();
+files	= new lFiles.Files();
 files.get(function (err, result) {
 	if (err) throw err;
 
@@ -111,21 +106,14 @@ files.get(function (err, result) {
 #### Filter list based on metadata
 
 ```javascript
-const	lFiles	= require('larvitfiles'),
-	db	= require('larvitdb');
-
-let files;
-
-db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
-
-files = new lFiles.Files();
+files	= new lFiles.Files();
 
 // This will only return files with metadata
 // 1) "foo" = "bar" (and possibly other values as well)
 // and
 // 2) "zoo" = anything
-files.filter.metadata.foo = 'bar';
-files.filter.metadata.zoo = true;
+files.filter.metadata.foo	= 'bar';
+files.filter.metadata.zoo	= true;
 files.filter.operator	= 'and'; // or 'or'. 'and' is default
 files.get(function (err, result) {
 	if (err) throw err;
@@ -137,14 +125,7 @@ files.get(function (err, result) {
 And if several values should exist on a single metadata do this:
 
 ```javascript
-const	lFiles	= require('larvitfiles'),
-	db	= require('larvitdb');
-
-let files;
-
-db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
-
-files = new lFiles.Files();
+files	= new lFiles.Files();
 
 // This will only return files with metadata
 // 1) "foo" = "bar" (and possibly other values as well)

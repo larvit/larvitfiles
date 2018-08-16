@@ -23,10 +23,8 @@ install:
 before_script:
   - mysql -e 'CREATE DATABASE test'
 
-services:
-  - mysql
-
 addons:
+  mariadb: 10.3
   apt:
     sources:
     - ubuntu-toolchain-r-test
@@ -34,9 +32,3 @@ addons:
     - g++-4.8
 
 script: DBCONFFILE=db_travis.json mocha
-
-#addons:
-#  mariadb:
-#    - 5.5
-#    - 10.0
-#    - 10.1

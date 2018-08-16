@@ -3,12 +3,12 @@
 const	topLogPrefix	= 'larvitfiles: ./index.js: ',
 	DataWriter	= require(__dirname + '/dataWriter.js'),
 	Intercom	= require('larvitamintercom'),
-	lUtils	= new (require('larvitutils'))(),
+	LUtils	= require('larvitutils'),
 	mkdirp	= require('mkdirp');
 
 function FileLib(options, cb) {
-	const logPrefix = topLogPrefix + 'User() - ',
-		that = this;
+	const	logPrefix	= topLogPrefix + 'User() - ',
+		that	= this;
 
 	that.options	= options || {};
 
@@ -23,10 +23,12 @@ function FileLib(options, cb) {
 	that.storagePath	= that.options.storagePath;
 
 	if ( ! that.options.log) {
+		const	lUtils	= new LUtils();
 		that.log	= new lUtils.Log();
 	} else {
 		that.log	= options.log;
 	}
+	that.lUtils	= new LUtils({'log': that.log});
 
 	if ( ! that.options.exchangeName) {
 		that.exchangeName	= 'larvitfiles';
@@ -48,14 +50,14 @@ function FileLib(options, cb) {
 		that.log.error(logPrefix + err.message);
 		throw err;
 	} else {
-		that.mode = that.options.mode;
+		that.mode	= that.options.mode;
 	}
 
 	if ( ! that.options.intercom) {
 		that.log.info(logPrefix + 'No "intercom" option given, defaulting to "loopback interface"');
 		that.intercom	= new Intercom('loopback interface');
 	} else {
-		that.intercom = that.options.intercom;
+		that.intercom	= that.options.intercom;
 	}
 
 	// Make sure the storage path exists
@@ -68,7 +70,7 @@ function FileLib(options, cb) {
 		}
 
 		that.dataWriter	= new DataWriter({
-			'storagePath': that.storagePath,
+			'storagePath':	that.storagePath,
 			'exchangeName':	that.exchangeName,
 			'intercom':	that.intercom,
 			'mode':	that.mode,
@@ -114,7 +116,7 @@ FileLib.prototype.getFileUuidBySlug = function getFileUuidBySlug(slug, cb) {
 			return cb(null, false);
 		}
 
-		cb(err, lUtils.formatUuid(rows[0].uuid));
+		cb(err, that.lUtils.formatUuid(rows[0].uuid));
 	});
 };
 

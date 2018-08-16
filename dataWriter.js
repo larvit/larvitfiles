@@ -158,6 +158,7 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 		options.tableName	= 'larvitfiles_db_version';
 		options.migrationScriptsPath	= __dirname + '/dbmigration';
 		options.storagePath	= that.storagePath;
+		options.log	= that.log;
 		dbMigration	= new DbMigration(options);
 
 		dbMigration.run(function (err) {
