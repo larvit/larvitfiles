@@ -20,14 +20,14 @@
   },
   "homepage": "https://github.com/larvit/larvitfiles#readme",
   "dependencies": {
-    "async": "2.0.1",
-    "larvitamintercom": "0.3.0",
+    "async": "2.6.1",
+    "larvitamintercom": "0.3.1",
     "larvitamsync": "0.7.2",
     "larvitdbmigration": "4.0.1",
-    "larvitfs": "2.0.4",
-    "larvitutils": "2.0.0",
+    "larvitfs": "2.2.0",
+    "larvitutils": "2.1.0",
     "mkdirp": "0.5.1",
-    "uuid": "3.0.0"
+    "uuid": "3.3.2"
   },
   "devDependencies": {
     "freeport": "1.0.5",
