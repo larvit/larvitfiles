@@ -33,7 +33,7 @@
     "freeport": "1.0.5",
     "larvitdb": "2.1.0",
     "larvitbase": "3.1.0",
-    "larvitreqparser": "0.1.2",
+    "larvitreqparser": "0.2.0",
     "mocha": "5.2.0",
     "mocha-eslint": "4.1.0"
   }
