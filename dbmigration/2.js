@@ -1,27 +1,28 @@
 'use strict';
 
-const	logPrefix	= 'larvitfiles: ./dbmigration/2.js: ',
-	lUtils	= new (require('larvitutils'))(),
-	async	= require('async'),
-	log	= require('winston'),
-	fs	= require('fs');
+const logPrefix = 'larvitfiles: ./dbmigration/2.js: ';
+const LUtils    = require('larvitutils');
+const async     = require('async');
+const fs        = require('fs');
 
 exports = module.exports = function (cb) {
-	const	tasks	= [],
-		that	= this,
-		db	= this.options.dbDriver;
+	const tasks  = [];
+	const that   = this;
+	const lUtils = new LUtils({'log': that.log});
+	const db     = that.options.dbDriver;
 
 	let	files;
 
 	if (that.options.storagePath === null) {
 		const	err	= new Error('storagePath not set on larvitfiles');
-		log.warn(logPrefix + err.message);
+
+		that.log.warn(logPrefix + err.message);
 		throw err;
 	}
 
-	if ( ! fs.existsSync(that.options.storagePath)) {
+	if (! fs.existsSync(that.options.storagePath)) {
 		tasks.push(function (cb) {
-			log.info(logPrefix + 'storagePath "' + that.options.storagePath + '" does not exist, creating');
+			that.log.info(logPrefix + 'storagePath "' + that.options.storagePath + '" does not exist, creating');
 			fs.mkdir(that.options.storagePath, cb);
 		});
 	}
@@ -29,7 +30,7 @@ exports = module.exports = function (cb) {
 	// Get list of slugs and uuids
 	tasks.push(function (cb) {
 		db.query('SELECT uuid, slug FROM larvitfiles_files', function (err, rows) {
-			files	= rows;
+			files = rows;
 			cb(err);
 		});
 	});
@@ -44,7 +45,8 @@ exports = module.exports = function (cb) {
 					if (err) return cb(err);
 
 					if (result.length === 0) {
-						log.warn(logPrefix + 'Could not find file with uuid "' + Utils.formatUuid(file.uuid) + '"');
+						that.log.warn(logPrefix + 'Could not find file with uuid "' + Utils.formatUuid(file.uuid) + '"');
+
 						return cb();
 					}
 

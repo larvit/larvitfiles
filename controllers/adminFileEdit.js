@@ -1,19 +1,19 @@
 'use strict';
 
-const	async	= require('async'),
-	Lfs	= require('larvitfs'),
-	lfs	= new Lfs(),
-	conf	= require(lfs.getPathSync('config/larvitfiles.json')),
-	fs	= require('fs');
+const async = require('async');
+const Lfs   = require('larvitfs');
+const fs    = require('fs');
 
 exports.run = function (req, res, cb) {
-	const	tasks	= [],
-		data	= {'global': res.globalData, 'conf': conf};
+	const tasks = [];
+	const lfs   = new Lfs({'log': req.log, 'fs': fs});
+	const conf  = require(lfs.getPathSync('config/larvitfiles.json'));
+	const data  = {'global': res.globalData, 'conf': conf};
 
-	let	file;
+	let file;
 
-	data.global.menuControllerName	= 'adminFiles';
-	data.global.errors	= [];
+	data.global.menuControllerName = 'adminFiles';
+	data.global.errors             = [];
 
 	if (data.global.urlParsed.query.uuid !== undefined) {
 		tasks.push(function (cb) {
@@ -25,19 +25,19 @@ exports.run = function (req, res, cb) {
 	}
 
 	if (data.global.formFields.save !== undefined) {
-		const	newFileData	= {};
+		const newFileData = {};
 
-		newFileData.slug	= data.global.formFields.slug;
-		newFileData.metadata	= {};
+		newFileData.slug     = data.global.formFields.slug;
+		newFileData.metadata = {};
 
 		// Set metadata
 		for (let i = 0; data.global.formFields.metaDataName[i] !== undefined; i ++) {
 			if (data.global.formFields.metaDataName[i] !== '' && data.global.formFields.metaDataValue[i] !== '') {
-				const	name	= data.global.formFields.metaDataName[i],
-					value	= data.global.formFields.metaDataValue[i];
+				const name  = data.global.formFields.metaDataName[i];
+				const value = data.global.formFields.metaDataValue[i];
 
 				if (newFileData.metadata[name] === undefined) {
-					newFileData.metadata[name]	= [];
+					newFileData.metadata[name] = [];
 				}
 
 				newFileData.metadata[name].push(value);
@@ -77,10 +77,10 @@ exports.run = function (req, res, cb) {
 			tasks.push(function (cb) {
 				fs.readFile(req.formFiles.fileData.path, function (err, fileData) {
 					if (err) {
-						log.warn(logPrefix + 'Could not read file: "' + req.formFiles.fileData.path + '", err: ' + err.message);
+						req.log.warn(logPrefix + 'Could not read file: "' + req.formFiles.fileData.path + '", err: ' + err.message);
 					}
 
-					newFileData.data	= fileData;
+					newFileData.data = fileData;
 					cb(err);
 				});
 			});
@@ -88,7 +88,7 @@ exports.run = function (req, res, cb) {
 			tasks.push(function (cb) {
 				fs.unlink(req.formFiles.fileData.path, function (err) {
 					if (err) {
-						log.warn(logPrefix + 'Could not unlink file: "' + req.formFiles.fileData.path + '", err: ' + err.message);
+						req.log.warn(logPrefix + 'Could not unlink file: "' + req.formFiles.fileData.path + '", err: ' + err.message);
 					}
 
 					cb(err);
@@ -105,11 +105,11 @@ exports.run = function (req, res, cb) {
 					cb(err);
 				});
 			} else {
-				file.slug	= newFileData.slug;
-				file.metadata	= newFileData.metadata;
+				file.slug     = newFileData.slug;
+				file.metadata = newFileData.metadata;
 
 				if (newFileData.data) {
-					file.data	= newFileData.data;
+					file.data = newFileData.data;
 				}
 
 				cb();
@@ -126,11 +126,11 @@ exports.run = function (req, res, cb) {
 			if (data.global.errors.length !== 0) {
 				// Do nothing
 			} else if (file.uuid !== undefined && data.global.urlParsed.query.uuid === undefined) {
-				req.session.data.nextCallData	= {'global': {'messages': ['New file created']}};
-				res.statusCode	= 302;
+				req.session.data.nextCallData = {'global': {'messages': ['New file created']}};
+				res.statusCode                = 302;
 				res.setHeader('Location', '/adminFileEdit?uuid=' + file.uuid);
 			} else {
-				data.global.messages	= ['Saved'];
+				data.global.messages = ['Saved'];
 			}
 			cb();
 		});
@@ -143,8 +143,8 @@ exports.run = function (req, res, cb) {
 			file.rm(function (err) {
 				if (err) return cb(err);
 
-				req.session.data.nextCallData	= {'global': {'messages': ['Movie deleted']}};
-				res.statusCode	= 302;
+				req.session.data.nextCallData = {'global': {'messages': ['Movie deleted']}};
+				res.statusCode                = 302;
 				res.setHeader('Location', '/adminFiles');
 				cb();
 			});
@@ -155,9 +155,9 @@ exports.run = function (req, res, cb) {
 	tasks.push(function (cb) {
 		if (file === undefined) return cb();
 
-		data.global.formFields.slug	= file.slug;
-		data.global.formFields.metaDataName	= [];
-		data.global.formFields.metaDataValue	= [];
+		data.global.formFields.slug          = file.slug;
+		data.global.formFields.metaDataName  = [];
+		data.global.formFields.metaDataValue = [];
 
 		for (const key of Object.keys(file.metadata)) {
 			for (let i = 0; file.metadata[key][i] !== undefined; i ++) {

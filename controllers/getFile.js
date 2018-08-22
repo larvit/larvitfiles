@@ -3,13 +3,21 @@
  */
 'use strict';
 
-const	Lfs	= require('larvitfs'),
-	lfs	= new Lfs(),
-	notFoundPath	= lfs.getPathSync('controllers/404.js'),
-	url	= require('url');
+const Lfs = require('larvitfs');
+const fs  = require('fs');
 
+/**
+ *
+ * @param {obj} req - standard req obj
+ * @param {obj} res - standard res obj
+ * @param {func} cb - callback
+ */
 function run(req, res, cb) {
-	req.urlParsed	= url.parse(req.url);
+	const lfs          = new Lfs({'log': req.log, 'fs': fs});
+	const notFoundPath = lfs.getPathSync('controllers/404.js');
+	const url          = require('url');
+
+	req.urlParsed = url.parse(req.url);
 
 	req.fileLib.file({
 		'slug': decodeURIComponent(req.urlParsed.pathname.substring(req.fileLib.options.prefix))
@@ -19,6 +27,7 @@ function run(req, res, cb) {
 		if (file.uuid === undefined) {
 			// 404!!!
 			require(notFoundPath).run(req, res, cb);
+
 			return;
 		}
 
@@ -27,6 +36,6 @@ function run(req, res, cb) {
 	});
 }
 
-run.run	= run; // Backwards compatible with larvitbase 1.x
+run.run = run; // Backwards compatible with larvitbase 1.x
 
 exports = module.exports = run;
