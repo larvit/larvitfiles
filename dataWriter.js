@@ -267,7 +267,7 @@ DataWriter.prototype.runDumpServer = function runDumpServer(cb) {
 	args.push(that.db.conf.user);
 
 	if (that.db.conf.password) {
-		args.push('-p' + db.conf.password);
+		args.push('-p' + that.db.conf.password);
 	}
 
 	args.push('--single-transaction');
