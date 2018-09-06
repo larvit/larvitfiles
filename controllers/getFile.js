@@ -20,7 +20,7 @@ function run(req, res, cb) {
 	req.urlParsed = url.parse(req.url);
 
 	req.fileLib.file({
-		'slug': decodeURIComponent(req.urlParsed.pathname.substring(req.fileLib.options.prefix))
+		'slug': decodeURIComponent(req.urlParsed.pathname.substr(req.fileLib.prefix.length))
 	}, function (err, file) {
 		if (err) return cb(err, req, res, {});
 
