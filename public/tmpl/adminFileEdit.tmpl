@@ -10,7 +10,7 @@
 
 	<div class="row">
 		<div class="six columns">
-			<label for="slug">Slug (file path, prefixed with <%= obj.conf.prefix %>)</label>
+			<label for="slug">Slug (file path, prefixed with <%= obj.prefix %>)</label>
 			<input class="u-full-width" type="text" name="slug" value="<%= obj.global.formFields.slug %>" />
 		</div>
 
@@ -22,7 +22,7 @@
 
 	<% if (global.urlParsed.query.uuid) { %>
 		<div class="row">
-			<p>Full file path: <%= obj.conf.prefix %><%= obj.global.formFields.slug %></p>
+			<p>Full file path: <%= obj.prefix %><%= obj.global.formFields.slug %></p>
 		</div>
 	<% } %>
 

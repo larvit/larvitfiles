@@ -1,14 +1,11 @@
 'use strict';
 
 const async = require('async');
-const Lfs   = require('larvitfs');
 const fs    = require('fs');
 
 exports.run = function (req, res, cb) {
 	const tasks = [];
-	const lfs   = new Lfs({'log': req.log, 'fs': fs});
-	const conf  = require(lfs.getPathSync('config/larvitfiles.json'));
-	const data  = {'global': res.globalData, 'conf': conf};
+	const data  = {'global': res.globalData, 'prefix': req.fileLib.prefix};
 
 	let file;
 
