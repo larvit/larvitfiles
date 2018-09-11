@@ -31,7 +31,11 @@ function run(req, res, cb) {
 			return;
 		}
 
-		res.writeHead(200, 'application/octet-stream');
+		const header = {};
+
+		header['Content-Type'] = 'application/octet-stream';
+		header['Content-Disposition'] = 'attachment; filename="' + file.slug + '"';
+		res.writeHead(200, header);
 		res.end(file.data);
 	});
 }
