@@ -188,12 +188,12 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 	});
 
 	async.series(tasks, function (err) {
-		if (err) return;
+		if (err) return cb(err);
 
 		that.isReady = true;
 		that.emitter.emit('ready');
 
-		if (that.mode === 'both' || that.mode === 'master') {
+		if (that.mode === 'master') {
 			that.runDumpServer(cb);
 		} else {
 			cb();
