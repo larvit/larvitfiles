@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "freeport": "1.0.5",
-    "larvitdb": "2.1.0",
+    "larvitdb": "2.1.1",
     "larvitbase": "3.1.0",
     "mocha": "5.2.0",
     "mocha-eslint": "4.1.0"
