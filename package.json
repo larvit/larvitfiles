@@ -22,7 +22,7 @@
   "dependencies": {
     "async": "2.6.1",
     "larvitamintercom": "0.3.1",
-    "larvitamsync": "0.7.2",
+    "larvitamsync": "0.7.3",
     "larvitdbmigration": "4.0.1",
     "larvitfs": "2.3.0",
     "larvitutils": "2.1.0",
