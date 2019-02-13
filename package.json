@@ -21,7 +21,7 @@
   "homepage": "https://github.com/larvit/larvitfiles#readme",
   "dependencies": {
     "async": "2.6.2",
-    "larvitamintercom": "0.3.1",
+    "larvitamintercom": "0.3.4",
     "larvitamsync": "0.7.3",
     "larvitdbmigration": "4.0.1",
     "larvitfs": "2.3.1",
