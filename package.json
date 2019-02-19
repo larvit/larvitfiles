@@ -25,7 +25,7 @@
     "larvitamsync": "0.7.3",
     "larvitdbmigration": "4.0.2",
     "larvitfs": "2.3.1",
-    "larvitutils": "2.1.0",
+    "larvitutils": "2.1.1",
     "mkdirp": "0.5.1",
     "uuid": "3.3.2"
   },
