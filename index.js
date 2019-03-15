@@ -65,6 +65,7 @@ async function _readFile(filePath) {
  * @param {string} options.order.column - The metadata field name to sort by
  * @param {Number} options.offset - The offset for the query
  * @param {Number} options.limit - The maximum amount of files returned, defaults to 100
+ * @returns {Promise} - A promise that resolves to an array of file objects
  */
 async function _get(db, log, lUtils, options) {
 	let dbFields = [];
