@@ -201,6 +201,16 @@ async function _get(db, log, lUtils, options) {
 		}
 	}
 
+	if (options.limit) {
+		sql += 'LIMIT ?';
+		dbFields.push(options.limit);
+
+		if (options.offset) {
+			sql += ' OFFSET ?';
+			dbFields.push(options.offset);
+		}
+	}
+
 	const rows = await _runQuery(db, sql, dbFields);
 
 	if (! rows || rows.length === 0) return [];
