@@ -126,6 +126,6 @@ const options = {
 };
 
 const files	= await Files.list(options);
-console.log(result); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
+console.log(files); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
 });
 ```
