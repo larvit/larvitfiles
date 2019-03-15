@@ -11,11 +11,11 @@ const uuid = require('uuid/v4');
 const fs = require('fs');
 
 /**
- * A promise wrapper for running a database query
+ * A promise wrapper for running a database query, will resolve to the rows fetched
  * 
  * @param {object} db - The db instance to run the query on
  * @param {string} sql - The query to run
- * @param {Array} dbFields - Parameter for the query
+ * @param {object[]} dbFields - Parameters for the query
  */
 async function _runQuery(db, sql, dbFields) {
 	return new Promise((resolve, reject) => {
@@ -30,7 +30,7 @@ async function _runQuery(db, sql, dbFields) {
 };
 
 /**
- * A promise wrapper for fs.readFile
+ * A promise wrapper for fs.readFile, will resolve to the data the file
  * 
  * @param {string} filePath - Path to the file to read
  */
@@ -50,10 +50,21 @@ async function _readFile(filePath) {
 /**
  * Returns a list of files based on db instance and options
  * 
- * @param {db} db - A db instance 
- * @param {*} log - A logging instance
+ * @param {object} db - A db instance 
+ * @param {object} log - A logging instance
  * @param {lUtils} lUtils - An instance of larvitutils
- * @param {*} options - Options used to find the files
+ * @param {object} options - Options used to find the files
+ * @param {string[]} options.uuids - An array of uuids of files to get
+ * @param {string[]} options.slugs - An array of slugs of files to get
+ * @param {object} options.filter - Filter options for when listing files
+ * @param {string} options.filter.operator - Operator for filter queries, can be "and" or "or", defaults to "and"
+ * @param {object} options.filter.metadata - The metadata values used to filter listed files
+ * @param {string[]} options.filter.metadata.name - The key represents the name of the metadata field, and the value the value to filter on
+ * @param {object} options.order - Ordering options for file listing
+ * @param {string} options.order.dir - The sort order, can be "asc" or "desc", defaults to "desc"
+ * @param {string} options.order.column - The metadata field name to sort by
+ * @param {Number} options.offset - The offset for the query
+ * @param {Number} options.limit - The maximum amount of files returned, defaults to 100
  */
 async function _get(db, log, lUtils, options) {
 	let dbFields = [];
@@ -235,7 +246,18 @@ class Files {
 
 	/**
 	 * Options for Files instance.
-	 * @param {options} options - Must contain a database instanse on "db" and a file storage path on "fileStoragePath".
+	 * @param {object} options - Files options
+	 * @param {object} options.db - A mysql2 compatible db instance
+	 * @param {string} options.fileStoragePath - Path to where files should be stored
+	 * @param {object} [options.lUtils] - Instance of larvitutils. Will be created if not set
+	 * @param {object} [options.log] - Instans of logger. Will default to larvitutils logger if not set
+	 * @param {string} [options.exchangeName=larvitfiles] - Name of exchange used when communicating over Rabbitmq.
+	 * @param {string} [options.prefix=/dbfiles/] - Prefix used to navigate to controller serving files
+	 * @param {string} [options.mode=noSync] - Listening mode of dataWriter. Can be noSync, master, slave
+	 * @param {Intercom} [options.intercom] - An instance of larvitamintercom. Will default to instance using "loopback interface"
+	 * @param {string} [options.amsync_host=null] - Hostname used when syncing data
+	 * @param {string} [options.amsync_minPort=null] - Min. port in range used when syncing data
+	 * @param {string} [options.amsync_maxPort=null] - Max. port in range used when syncing data  
 	 */
 	constructor(options) {
 		const logPrefix = topLogPrefix + 'constructor() - ';
@@ -302,6 +324,7 @@ class Files {
 	/**
 	 * Returns the uuid of a file with a certain slug
 	 * @param {string} slug - The slug to identify the file by
+	 * @returns {Promise} - Promise that resolves to the string representation of the uuid found otherwise null
 	 */
 	async uuidFromSlug(slug) {
 		if (! slug) throw new Error('Slug not set');
@@ -314,9 +337,12 @@ class Files {
 	}
 
 	/**
-	 * Returns a file based on a uuid or a slug
-	 * @param {object} options - Must contain a uuid on "uuid" or a slug on "slug"
-	 */
+	* Returns a file based on a uuid or a slug
+	* @param {object} options - Options used to find the files
+	* @param {string} options.uuid - The uuid of the file to get
+	* @param {string} options.slug - The slug of the file to get. If uuid is supplied slug will be ignored.
+	* @returns {Promise} - Returns a promise that resolves to a file object if found, otherwise null
+	*/
 	async get(options) {
 		const getOptions = {};
 
@@ -337,17 +363,31 @@ class Files {
 	}
 
 	/**
-	 * Returns a list of files based on filter options
-	 * @param {object} options - Filter options
-	 * @returns {Promise} - Returns a promise that resolves to an array with file objects
-	 */
+	* Returns a list of files based on filter options
+	* @param {object} [options] - The options used to filter and order the file listing
+	* @param {object} [options.filter] - Filter options for when listing files
+	* @param {string} [options.filter.operator] - Operator for filter queries, can be "and" or "or", defaults to "and"
+	* @param {object} [options.filter.metadata] - The metadata values used to filter listed files
+	* @param {string[]} [options.filter.metadata.name] - The key represents the name of the metadata field, and the value the value to filter on
+	* @param {object} [options.order] - Ordering options for file listing
+	* @param {string} [options.order.dir] - The sort order, can be "asc" or "desc", defaults to "desc"
+	* @param {string} [options.order.column] - The metadata field name to sort by
+	* @param {Number} [options.offset] - The offset for the query
+	* @param {Number} [options.limit] - The maximum amount of files returned, defaults to 100
+	* @returns {Promise} - Returns a promise that resolves to an array with file objects
+	*/
 	list(options) {
-		return _get(this.db, this.log, this.lUtils, options);
+		return _get(this.db, this.log, this.lUtils, options || {});
 	}
 
 	/**
-	 * Save function
-	 * @param {object} file - File to save 
+	 * Saves a file object in the database and writes its data to disk
+	 * @param {object} file - File to save
+	 * @param {string} [file.uuid=uuid()] - A unique uuid used to identify the file. Will be generated if not set
+	 * @param {string} file.slug - A unique slug used to identify the file
+	 * @param {object} [file.metadata] - Metadata for file
+	 * @param {string[]} [file.metadata.key] - Key/value pairs of metadata. A key can have multiple values.
+	 * @param {Buffer} file.data - The buffered contents of the file
 	 * @returns {Promise} promise - Returns a promise that resolves to the file saved
 	 */
 	save(file) {
@@ -416,7 +456,7 @@ class Files {
 	/**
 	 * Removes a file with uuid
 	 * @param {string} uuid - uuid of file to remove
-	 * @returns {Promise} - A promise that resolves when the files is deleted
+	 * @returns {Promise} - A promise that resolves when the files is removed
 	 */
 	rm(uuid) {
 		return new Promise((resolve, reject) => {
