@@ -209,6 +209,8 @@ async function _get(db, log, lUtils, options) {
 			sql += ' OFFSET ?';
 			dbFields.push(options.offset);
 		}
+	} else {
+		sql += 'LIMIT 100';
 	}
 
 	const rows = await _runQuery(db, sql, dbFields);
