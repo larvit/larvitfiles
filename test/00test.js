@@ -81,7 +81,9 @@ before(function (done) {
 			'log':         log,
 			'db':          db,
 			'storagePath': storagePath
-		}, cb);
+		});
+
+		cb();
 	});
 
 	async.series(tasks, function (err) {
@@ -119,25 +121,22 @@ describe('Files', function () {
 		fs.readFile(__dirname + '/dummyFile.txt', function (err, data) {
 			if (err) throw err;
 
-			filesLib.file({
+			filesLib.save({
 				'slug':     'slug/foo/bar.txt',
 				'data':     data,
 				'metadata': {'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']}
-			}, function (err, file) {
-				if (err) throw err;
+			}).then((result) => {
+				assert.notStrictEqual(result.uuid, undefined);
+				assert.deepEqual(result.metadata.metadata1, ['metavalue1']);
+				assert.deepEqual(result.metadata.metadata2, ['multiple', 'values']);
+				assert.deepEqual(Object.keys(result.metadata).length, 2);
+				assert.deepEqual(result.slug, 'slug/foo/bar.txt');
 
-				file.save(function (err) {
-					if (err) throw err;
-
-					assert.deepEqual(file.uuid,                         lUtils.formatUuid(file.uuid));
-					assert.deepEqual(file.metadata.metadata1,           ['metavalue1']);
-					assert.deepEqual(file.metadata.metadata2,           ['multiple', 'values']);
-					assert.deepEqual(Object.keys(file.metadata).length, 2);
-					assert.deepEqual(file.slug,                         'slug/foo/bar.txt');
-
-					done();
+				done();
+			})
+				.catch(err => {
+					done(err);
 				});
-			});
 		});
 	});
 
@@ -145,7 +144,7 @@ describe('Files', function () {
 		fs.readFile(__dirname + '/dummyFile.txt', function (err, data) {
 			if (err) throw err;
 
-			filesLib.file({'slug': 'slug/foo/bar.txt'}, function (err, file) {
+			filesLib.get({'slug': 'slug/foo/bar.txt'}).then(file => {
 				if (err) throw err;
 
 				assert.deepEqual(file.uuid,                         lUtils.formatUuid(file.uuid));
@@ -156,176 +155,174 @@ describe('Files', function () {
 				assert.deepEqual(file.data,                         data);
 
 				done();
-			});
+			})
+				.catch(err => { done(err); });
 		});
 	});
 
 	it('Write another to db', function (done) {
-		filesLib.file({
+		filesLib.save({
 			'slug':     'boll.txt',
 			'data':     Buffer.from('buhu'),
 			'metadata': {'metadata1': 'metavalue2', 'other': 'value'}
-		}, function (err, file) {
-			if (err) throw err;
+		}).then(file => {
+			assert.strictEqual(file.uuid,                       lUtils.formatUuid(file.uuid));
+			assert.deepEqual(file.metadata.metadata1,           ['metavalue2']);
+			assert.deepEqual(file.metadata.other,               ['value']);
+			assert.deepEqual(Object.keys(file.metadata).length, 2);
+			assert.deepEqual(file.slug,                         'boll.txt');
+			assert.deepEqual(file.data,                         Buffer.from('buhu'));
 
-			file.save(function (err) {
-				if (err) throw err;
-
-				assert.strictEqual(file.uuid,                       lUtils.formatUuid(file.uuid));
-				assert.deepEqual(file.metadata.metadata1,           ['metavalue2']);
-				assert.deepEqual(file.metadata.other,               ['value']);
-				assert.deepEqual(Object.keys(file.metadata).length, 2);
-				assert.deepEqual(file.slug,                         'boll.txt');
-				assert.deepEqual(file.data,                         Buffer.from('buhu'));
-
-				done();
-			});
-		});
+			done();
+		})
+			.catch(err => { done(err); });
 	});
 
 	it('List all files in storage', function (done) {
-		new FileLib.Files({'db': db, 'log': log}).get(function (err, result) {
-			if (err) throw err;
+		filesLib.list().then(result => {
+			assert.deepEqual(result.length,	2);
 
-			assert.deepEqual(Object.keys(result).length,	2);
-
-			for (const fileUuid of Object.keys(result)) {
-				assert.deepEqual(fileUuid,                                      lUtils.formatUuid(fileUuid));
-				assert.deepEqual(result[fileUuid].uuid,                         lUtils.formatUuid(result[fileUuid].uuid));
-				assert.deepEqual(Object.keys(result[fileUuid].metadata).length, 2);
-				assert.deepEqual(typeof result[fileUuid].slug,                  'string');
-				assert.deepEqual(result[fileUuid].data,                         undefined);
+			for (const file of result) {
+				assert.notStrictEqual(file.uuid, undefined);
+				assert.strictEqual(Object.keys(file.metadata).length, 2);
+				assert.strictEqual(typeof file.slug, 'string');
+				assert.strictEqual(file.data, undefined);
 			}
 
 			done();
-		});
+		})
+			.catch(err => { done(err); });
 	});
 
 	it('Write yet another to db', function (done) {
-		filesLib.file({
+		filesLib.save({
 			'slug':     'fippel.txt',
 			'data':     Buffer.from('ðđªßð'),
 			'metadata': {'foo': ['bar', 'baz', 'buu'], 'other': ['value', 'andThis']}
-		}, function (err, file) {
-			if (err) throw err;
-
-			file.save(function (err) {
-				if (err) throw err;
-
-				done();
-			});
-		});
+		}).then(() => done())
+			.catch(done);
 	});
 
 	it('List files in storage filtered by exact metadata', function (done) {
-		const files = new FileLib.Files({'db': db, 'log': log});
+		filesLib.list({'filter': { 'metadata': {'metadata1': 'metavalue2'}}}).then(result => {
+			assert.deepEqual(result.length, 1);
 
-		files.filter.metadata.metadata1 = 'metavalue2';
-
-		files.get(function (err, result) {
-			if (err) throw err;
-
-			assert.deepEqual(Object.keys(result).length, 1);
-
-			for (const fileUuid of Object.keys(result)) {
-				assert.deepEqual(result[fileUuid].uuid,                         lUtils.formatUuid(result[fileUuid].uuid));
-				assert.deepEqual(result[fileUuid].metadata.metadata1,           ['metavalue2']);
-				assert.deepEqual(result[fileUuid].metadata.other,               ['value']);
-				assert.deepEqual(Object.keys(result[fileUuid].metadata).length, 2);
-				assert.deepEqual(result[fileUuid].slug,                         'boll.txt');
-				assert.deepEqual(result[fileUuid].data,                         undefined);
-			}
+			assert.notStrictEqual(result[0].uuid,                        undefined);
+			assert.deepEqual(result[0].metadata.metadata1,           ['metavalue2']);
+			assert.deepEqual(result[0].metadata.other,               ['value']);
+			assert.deepEqual(Object.keys(result[0].metadata).length, 2);
+			assert.deepEqual(result[0].slug,                         'boll.txt');
+			assert.deepEqual(result[0].data,                         undefined);
 
 			done();
-		});
+		})
+			.catch(done);
 	});
 
 	it('List files in storage filtered by exact metadata, multiple metadata', function (done) {
-		const files = new FileLib.Files({'db': db, 'log': log});
+		const options = {
+			'filter': {
+				'metadata': {
+					'other':     'value',
+					'metadata1': 'metavalue2'
+				}
+			}
+		};
 
-		files.filter.metadata.other     = 'value';
-		files.filter.metadata.metadata1 = 'metavalue2';
-
-		files.get(function (err, result) {
-			if (err) throw err;
-
-			assert.deepEqual(Object.keys(result).length, 1);
+		filesLib.list(options).then(result => {
+			assert.strictEqual(result.length, 1);
 
 			done();
-		});
+		})
+			.catch(done);
 	});
 
 	it('List files in storage filtered by exact metadata, multiple matches', function (done) {
-		const files = new FileLib.Files({'db': db, 'log': log});
+		const options = {
+			'filter': {
+				'metadata': {
+					'other': 'value'
+				}
+			}
+		};
 
-		files.filter.metadata.other = 'value';
-
-		files.get(function (err, result) {
-			if (err) throw err;
-
-			assert.deepEqual(Object.keys(result).length, 2);
+		filesLib.list(options).then(result => {
+			assert.strictEqual(result.length, 2);
 
 			done();
-		});
+		})
+			.catch(done);
 	});
 
 	it('List files in storage filtered by existing metadata key', function (done) {
-		const files = new FileLib.Files({'db': db, 'log': log});
+		const options = {
+			'filter': {
+				'metadata': {
+					'metadata1': true
+				}
+			}
+		};
 
-		files.filter.metadata.metadata1 = true;
-
-		files.get(function (err, result) {
-			if (err) throw err;
-
-			assert.deepEqual(Object.keys(result).length, 2);
+		filesLib.list(options).then(result => {
+			assert.strictEqual(result.length, 2);
 
 			done();
-		});
+		})
+			.catch(done);
 	});
 
 	it('List files in storage filtered by existing metadata key in combination with exact metadata', function (done) {
-		const files = new FileLib.Files({'db': db, 'log': log});
+		const options = {
+			'filter': {
+				'metadata': {
+					'other':     'value',
+					'metadata1': true
+				}
+			}
+		};
 
-		files.filter.metadata.metadata1 = true;
-		files.filter.metadata.other     = 'value';
-
-		files.get(function (err, result) {
-			if (err) throw err;
-
+		filesLib.list(options).then(result => {
 			assert.deepEqual(Object.keys(result).length, 1);
 
 			done();
-		});
+		})
+			.catch(done);
 	});
 
 	it('List files in storage filtered by two metadata values in combination', function (done) {
-		const files = new FileLib.Files({'db': db, 'log': log});
+		const options = {
+			'filter': {
+				'metadata': {
+					'other': ['value', 'andThis']
+				}
+			}
+		};
 
-		files.filter.metadata.other = ['value', 'andThis'];
-
-		files.get(function (err, result) {
-			if (err) throw err;
-
+		filesLib.list(options).then(result => {
 			assert.deepEqual(Object.keys(result).length, 1);
 
 			done();
-		});
+		})
+			.catch(done);
 	});
 
 	it('List files in storage filtered by exact metadata, multiple metadata and the or operator', function (done) {
-		const files = new FileLib.Files({'db': db, 'log': log});
+		const options = {
+			'filter': {
+				'metadata': {
+					'metadata1': 'metavalue2',
+					'foo':       'baz'
+				},
+				'operator': 'or'
+			}
+		};
 
-		files.filter.metadata.metadata1 = 'metavalue2';
-		files.filter.metadata.foo       = 'baz';
-		files.filter.operator           = 'or';
-
-		files.get(function (err, result) {
-			if (err) throw err;
-
+		filesLib.list(options).then(result => {
 			assert.deepEqual(Object.keys(result).length, 2);
 
 			done();
-		});
+		})
+			.catch(done);
 	});
 
 	it('Return octet stream on larvitbase controller', function (done) {
@@ -389,13 +386,11 @@ describe('Files', function () {
 		const tasks = [];
 
 		tasks.push(function (cb) {
-			filesLib.file({'slug': 'slug/foo/bar.txt'}, function (err, file) {
-				if (err) throw err;
-
-				assert.deepEqual(file.uuid, lUtils.formatUuid(file.uuid));
-
-				file.rm(cb);
-			});
+			filesLib.uuidFromSlug('slug/foo/bar.txt').then(uuid => {
+				filesLib.rm(uuid).then(cb)
+					.catch(cb);
+			})
+				.catch(cb);
 		});
 
 		tasks.push(function (cb) {
@@ -413,15 +408,11 @@ describe('Files', function () {
 	it('should rename a slug on an existing file', function (done) {
 		const tasks = [];
 
-		let fileUuid;
 		let file;
 
 		tasks.push(function (cb) {
-			filesLib.file({'slug': 'boll.txt'}, function (err, filen) {
-				if (err) throw err;
-
+			filesLib.get({'slug': 'boll.txt'}).then(filen => {
 				file     = filen;
-				fileUuid = file.uuid;
 
 				assert.deepEqual(file.uuid,                         lUtils.formatUuid(file.uuid));
 				assert.deepEqual(file.metadata.metadata1,           ['metavalue2']);
@@ -431,34 +422,24 @@ describe('Files', function () {
 				assert.deepEqual(file.data,                         Buffer.from('buhu'));
 
 				cb();
-			});
+			})
+				.catch(cb);
 		});
 
 		tasks.push(function (cb) {
 			file.slug = 'somethingNewAndShiny.txt';
 
-			file.save(function (err) {
-				if (err) throw err;
-
-				file.slug = 'somethingNewAndShiny.txt';
-
-				cb();
-			});
-		});
-
-		tasks.push(function (cb) {
-			filesLib.file({'uuid': fileUuid}, function (err, testFile) {
-				if (err) throw err;
-
-				assert.deepEqual(testFile.uuid,                         lUtils.formatUuid(testFile.uuid));
-				assert.deepEqual(testFile.metadata.metadata1,           ['metavalue2']);
-				assert.deepEqual(testFile.metadata.other,               ['value']);
-				assert.deepEqual(Object.keys(testFile.metadata).length, 2);
-				assert.deepEqual(testFile.slug,                         'somethingNewAndShiny.txt');
-				assert.deepEqual(testFile.data,                         Buffer.from('buhu'));
+			filesLib.save(file).then(result => {
+				assert.deepEqual(result.uuid,                         lUtils.formatUuid(file.uuid));
+				assert.deepEqual(result.metadata.metadata1,           ['metavalue2']);
+				assert.deepEqual(result.metadata.other,               ['value']);
+				assert.deepEqual(Object.keys(result.metadata).length, 2);
+				assert.deepEqual(result.slug,                         'somethingNewAndShiny.txt');
+				assert.deepEqual(result.data,                         Buffer.from('buhu'));
 
 				cb();
-			});
+			})
+				.catch(cb);
 		});
 
 		async.series(tasks, done);
@@ -467,46 +448,33 @@ describe('Files', function () {
 	it('should fail on renaming if slug exists', function (done) {
 		const	tasks	= [];
 
-		let fileUuid;
 		let file;
 
 		tasks.push(function (cb) {
-			filesLib.file({'slug': 'somethingNewAndShiny.txt'}, function (err, testFile) {
-				if (err) throw err;
+			filesLib.get({'slug': 'somethingNewAndShiny.txt'}).then(filen => {
+				file     = filen;
 
-				file     = testFile;
-				fileUuid = file.uuid;
+				assert.deepEqual(file.metadata.metadata1,           ['metavalue2']);
+				assert.deepEqual(file.metadata.other,               ['value']);
+				assert.deepEqual(Object.keys(file.metadata).length, 2);
+				assert.deepEqual(file.slug,                         'somethingNewAndShiny.txt');
+				assert.deepEqual(file.data,                         Buffer.from('buhu'));
 
 				cb();
-			});
+			})
+				.catch(cb);
 		});
 
 		tasks.push(function (cb) {
 			file.slug = 'fippel.txt';
 
-			file.save(function (err) {
-				assert(err instanceof Error, 'Error should be set!');
-
-				// Not written to storage, but should still be the new value
-				assert.deepEqual(file.slug, 'fippel.txt');
-
-				cb();
-			});
-		});
-
-		tasks.push(function (cb) {
-			filesLib.file({'uuid': fileUuid}, function (err, testFile) {
-				if (err) throw err;
-
-				assert.deepEqual(testFile.uuid,                         lUtils.formatUuid(testFile.uuid));
-				assert.deepEqual(testFile.metadata.metadata1,           ['metavalue2']);
-				assert.deepEqual(testFile.metadata.other,               ['value']);
-				assert.deepEqual(Object.keys(testFile.metadata).length, 2);
-				assert.deepEqual(testFile.slug,                         'somethingNewAndShiny.txt');
-				assert.deepEqual(testFile.data,                         Buffer.from('buhu'));
-
-				cb();
-			});
+			filesLib.save(file).then(() => {
+				throw new Error('This should not happen!');
+			})
+				.catch(err => {
+					assert.strictEqual(err.message, 'Slug "fippel.txt" is take by another file');
+					cb();
+				});
 		});
 
 		async.series(tasks, done);

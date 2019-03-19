@@ -7,6 +7,10 @@ const LUtils       = require('larvitutils');
 const amsync       = require('larvitamsync');
 const async        = require('async');
 
+let isReady = false;
+let readyInProgress = false;
+let emitter = new EventEmitter();
+
 /**
  * Datawriter
  *
@@ -16,9 +20,6 @@ const async        = require('async');
 function DataWriter(options, cb) {
 	const that = this;
 
-	that.readyInProgress = false;
-	that.isReady         = false;
-
 	for (const key of Object.keys(options)) {
 		that[key] = options[key];
 	}
@@ -27,11 +28,12 @@ function DataWriter(options, cb) {
 		that.log = new (new LUtils()).Log();
 	}
 
-	that.emitter = new EventEmitter();
 	that.lUtils  = new LUtils({'log': that.log});
 
 	that.listenToQueue(cb);
 }
+
+DataWriter.prototype.emitter = emitter;
 
 DataWriter.prototype.listenToQueue = function listenToQueue(retries, cb) {
 	const logPrefix = topLogPrefix + 'listenToQueue() - ';
@@ -142,15 +144,15 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 		retries = 0;
 	}
 
-	if (that.isReady === true) return cb();
+	if (isReady === true) return cb();
 
-	if (that.readyInProgress === true) {
+	if (readyInProgress === true) {
 		that.emitter.on('ready', cb);
 
 		return;
 	}
 
-	that.readyInProgress = true;
+	readyInProgress = true;
 
 	tasks.push(function (cb) {
 		if (that.mode === 'slave') {
@@ -190,7 +192,7 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 	async.series(tasks, function (err) {
 		if (err) return cb(err);
 
-		that.isReady = true;
+		isReady = true;
 		that.emitter.emit('ready');
 
 		if (that.mode === 'master') {
@@ -214,6 +216,10 @@ DataWriter.prototype.rm = function rm(params, deliveryTag, msgUuid) {
 
 		return cb(err);
 	}
+
+	tasks.push(function (cb) {
+		that.ready(cb);
+	});
 
 	tasks.push(function (cb) {
 		const uuiBuffer = that.lUtils.uuidToBuffer(options.uuid);
@@ -304,6 +310,10 @@ DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 		return cb(err);
 	}
 
+	tasks.push(function (cb) {
+		that.ready(cb);
+	});
+
 	// Check validity of slug and uuid
 	tasks.push(function (cb) {
 		that.db.query('SELECT uuid FROM larvitfiles_files WHERE slug = ?', [options.slug], function (err, rows) {
@@ -360,7 +370,6 @@ DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 	// Insert metadata
 	tasks.push(function (cb) {
 		const dbFields = [];
-
 		let sql = 'INSERT INTO larvitfiles_files_metadata VALUES';
 
 		for (const name of Object.keys(options.metadata)) {

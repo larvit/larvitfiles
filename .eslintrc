@@ -4,6 +4,12 @@
 		"mocha":	true,
 		"node":	true
 	},
+	"parserOptions": {
+		"ecmaVersion": 8,
+		"ecmaFeatures": {
+			"ecmaVersion": 8
+		}
+		},
 	"rules": {
 		"array-bracket-newline":	["error", "consistent"],
 		"array-bracket-spacing":	["error", "never"],

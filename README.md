@@ -13,15 +13,15 @@ npm i larvitfiles;
 ### Load library
 
 ```javascript
-const	LFiles	= require('larvitfiles'),
+const	Files	= require('larvitfiles'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
-let	lFiles;
+let	files;
 
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
-lFiles = new LFiles({
+files = new Files({
 	'db':	db,
 	'storagePath':	'/tmp/larvitfiles',
 
@@ -45,49 +45,39 @@ fs.readFile('/some/file.txt', function (err, data) {
 
 	if (err) throw err;
 
-	file = new lFiles.File({
+	const file = await Files.save({
 		'slug':	'slug/foo/bar.txt',
 		'data':	data,
-		'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']}
-	}, function (err) {
-		if (err) throw err;
-
-		file.save(function (err) {
-			if (err) throw err;
-
-			console.log('file saved with uuid: ' + file.uuid);
-			console.log('metadata: ' + JSON.stringify(file.metadata));
-			console.log('slug: ' + file.slug);
-		});
+		'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']},
+		//uuid: uuid() - optional
 	});
+
+	console.log('file saved with uuid: ' + file.uuid);
+	console.log('metadata: ' + JSON.stringify(file.metadata));
+	console.log('slug: ' + file.slug);
 });
 ```
 
 ### Get file from storage
 
 ```javascript
-file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
-	if (err) throw err;
+file = await Files.get({'slug': 'slug/foo/bar.txt'});
 
-	console.log('file saved with uuid: ' + file.uuid);
-	console.log('metadata: ' + JSON.stringify(file.metadata));
-	console.log('slug: ' + file.slug);
-	// file data in file.data
-});
+// or 
+
+file = await Files.get({'uuid': 'uuid of file'});
+
+console.log('file saved with uuid: ' + file.uuid);
+console.log('metadata: ' + JSON.stringify(file.metadata));
+console.log('slug: ' + file.slug);
+// file data in file.data
 ```
 
 ### Remove a file from storage
 
 ```javascript
-file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
-	if (err) throw err;
-
-	file.rm(function (err) {
-		if (err) throw err;
-
-		console.log('File is now removed from storage');
-	});
-});
+Files.rm(await Files.uuidFromSlug('slog/foo/bar.txt'));
+console.log('File is now removed from storage');
 ```
 
 ### List files in storage
@@ -95,46 +85,47 @@ file = new lFiles.File({'slug': 'slug/foo/bar.txt'}, function (err) {
 #### List all files
 
 ```javascript
-files	= new lFiles.Files();
-files.get(function (err, result) {
-	if (err) throw err;
-
-	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
-});
+const files = await Files.list();
+console.log(result); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
 ```
 
 #### Filter list based on metadata
 
 ```javascript
-files	= new lFiles.Files();
-
 // This will only return files with metadata
 // 1) "foo" = "bar" (and possibly other values as well)
 // and
 // 2) "zoo" = anything
-files.filter.metadata.foo	= 'bar';
-files.filter.metadata.zoo	= true;
-files.filter.operator	= 'and'; // or 'or'. 'and' is default
-files.get(function (err, result) {
-	if (err) throw err;
+const options = {
+	filter: {
+		metadata: {
+			foo: 'bar',
+			zoo: true
+		},
+		operator: 'and' // or 'or'. 'and' is default
+	}
+};
 
-	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
-});
+const files	= await Files.list(options);
+console.log(files); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
 ```
 
 And if several values should exist on a single metadata do this:
 
 ```javascript
-files	= new lFiles.Files();
-
 // This will only return files with metadata
 // 1) "foo" = "bar" (and possibly other values as well)
 // and
 // 2) "foo" = "baz" (and possibly other values as well)
-files.filter.metadata.foo = ['bar', 'baz'];
-files.get(function (err, result) {
-	if (err) throw err;
+const options = {
+	filter: {
+		metadata: {
+			foo: ['bar', 'baz']
+		}
+	}
+};
 
-	console.log(result); // Object list of files, uuid as key and slugs, uuids and metadata, but NOT file data as values.
+const files	= await Files.list(options);
+console.log(files); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
 });
 ```

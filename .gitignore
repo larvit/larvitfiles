@@ -1,3 +1,4 @@
 config/db_test.json
 config/amqp_test.json
 node_modules
+.vscode

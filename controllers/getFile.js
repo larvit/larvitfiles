@@ -19,11 +19,9 @@ function run(req, res, cb) {
 
 	req.urlParsed = url.parse(req.url);
 
-	req.fileLib.file({
+	req.fileLib.get({
 		'slug': decodeURIComponent(req.urlParsed.pathname.substr(req.fileLib.prefix.length))
-	}, function (err, file) {
-		if (err) return cb(err, req, res, {});
-
+	}).then(function (file) {
 		if (file.uuid === undefined) {
 			// 404!!!
 			require(notFoundPath).run(req, res, cb);
@@ -37,7 +35,11 @@ function run(req, res, cb) {
 		header['Content-Disposition'] = 'attachment; filename="' + file.slug + '"';
 		res.writeHead(200, header);
 		res.end(file.data);
-	});
+		cb();
+	})
+		.catch(function (err) {
+			cb(err, req, res);
+		});
 }
 
 run.run = run; // Backwards compatible with larvitbase 1.x
