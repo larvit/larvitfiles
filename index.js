@@ -32,6 +32,7 @@ async function _runQuery(db, sql, dbFields) {
 /**
  * A promise wrapper for fs.readFile, will resolve to the data the file
  *
+ * @param {object} log - A logging instance
  * @param {string} filePath - Path to the file to read
  */
 async function _readFile(log, filePath) {
