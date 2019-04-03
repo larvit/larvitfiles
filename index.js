@@ -12,7 +12,7 @@ const fs = require('fs');
 
 /**
  * A promise wrapper for running a database query, will resolve to the rows fetched
- * 
+ *
  * @param {object} db - The db instance to run the query on
  * @param {string} sql - The query to run
  * @param {object[]} dbFields - Parameters for the query
@@ -31,14 +31,14 @@ async function _runQuery(db, sql, dbFields) {
 
 /**
  * A promise wrapper for fs.readFile, will resolve to the data the file
- * 
+ *
  * @param {string} filePath - Path to the file to read
  */
-async function _readFile(filePath) {
+async function _readFile(log, filePath) {
 	return new Promise((resolve, reject) => {
 		fs.readFile(filePath, (err, data) => {
 			if (err) {
-				this.log.warn(logPrefix + 'Failed to load file data from disk, err: ' + err.message);
+				log.warn(logPrefix + 'Failed to load file data from disk, err: ' + err.message);
 				reject(err);
 			} else {
 				resolve(data);
@@ -49,8 +49,8 @@ async function _readFile(filePath) {
 
 /**
  * Returns a list of files based on db instance and options
- * 
- * @param {object} db - A db instance 
+ *
+ * @param {object} db - A db instance
  * @param {object} log - A logging instance
  * @param {lUtils} lUtils - An instance of larvitutils
  * @param {object} options - Options used to find the files
@@ -270,7 +270,7 @@ class Files {
 	 * @param {Intercom} [options.intercom] - An instance of larvitamintercom. Will default to instance using "loopback interface"
 	 * @param {string} [options.amsync_host=null] - Hostname used when syncing data
 	 * @param {string} [options.amsync_minPort=null] - Min. port in range used when syncing data
-	 * @param {string} [options.amsync_maxPort=null] - Max. port in range used when syncing data  
+	 * @param {string} [options.amsync_maxPort=null] - Max. port in range used when syncing data
 	 */
 	constructor(options) {
 		const logPrefix = topLogPrefix + 'constructor() - ';
@@ -370,7 +370,7 @@ class Files {
 
 		if (result.length === 0) return null;
 
-		result[0].data = await _readFile(path.join(this.storagePath, result[0].uuid));
+		result[0].data = await _readFile(this.log, path.join(this.storagePath, result[0].uuid));
 
 		return result[0];
 	}
