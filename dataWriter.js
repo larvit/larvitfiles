@@ -326,7 +326,7 @@ DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 			}
 
 			if (uuid !== null && uuid !== options.uuid) {
-				const err = new Error('Slug "' + options.slug + '" is take by another file');
+				const err = new Error('Slug "' + options.slug + '" is taken by another file');
 
 				that.log.info(logPrefix + err.message);
 
