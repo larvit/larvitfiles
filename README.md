@@ -1,4 +1,5 @@
-[![Build Status](https://travis-ci.org/larvit/larvitfiles.svg)](https://travis-ci.org/larvit/larvitfiles) [![Dependencies](https://david-dm.org/larvit/larvitfiles.svg)](https://david-dm.org/larvit/larvitfiles.svg)
+[![Build Status](https://travis-ci.org/larvit/larvitfiles.svg?branch=master)](https://travis-ci.org/larvit/larvitfiles) [![Dependencies](https://david-dm.org/larvit/larvitfiles.svg)](https://david-dm.org/larvit/larvitfiles.svg)
+[![Coverage Status](https://coveralls.io/repos/larvit/larvitfiles/badge.svg)](https://coveralls.io/github/larvit/larvitfiles)
 
 # larvitfiles
 
@@ -32,7 +33,10 @@ const fileLib = new FileLib({
 	amsync_host: null,
 	amsync_minPort: null,
 	amsync_maxPort: null
-});
+}, err => {
+	// This is called when the initialization (db migration etc) is done
+	// If err is set, initialization failed
+};
 ```
 
 ### Add file from disk
@@ -53,6 +57,29 @@ fs.readFile('/some/file.txt', function (err, data) {
 	console.log('file saved with uuid: ' + file.uuid);
 	console.log('metadata: ' + JSON.stringify(file.metadata));
 	console.log('slug: ' + file.slug);
+});
+```
+
+### Update file on disk
+
+By default .save() will not accept a duplicate slug without also supplying a matching uuid.
+
+If the below script is ran when a file with the slug "slug/foo/bar.txt" already exists in the database, this will throw an error.
+
+```javascript
+const file = await fileLib.save({
+	slug: 'slug/foo/bar.txt',
+	data: Buffer.from('någe')
+});
+```
+
+To overwrite the existing file, on the same uuid, use option "updateMatchingSlug":
+
+```javascript
+const file = await fileLib.save({
+	slug: 'slug/foo/bar.txt',
+	data: Buffer.from('någe'),
+	updateMatchingSlug: true // Defaults to false
 });
 ```
 

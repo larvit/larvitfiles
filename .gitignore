@@ -1,4 +1,6 @@
 config/db_test.json
 config/amqp_test.json
+coverage
 node_modules
+.nyc_output
 .vscode

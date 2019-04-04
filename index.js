@@ -75,17 +75,17 @@ async function _get(db, log, lUtils, options) {
 	let sql = 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n';
 	let sqlOrder;
 
-	if (! options) options = {};
+	if (!options) options = {};
 
 	if (Array.isArray(options.uuids)) {
 		sql += 'WHERE f.uuid IN (';
 
-		for (let i = 0; i < options.uuids.length; i ++) {
+		for (let i = 0; i < options.uuids.length; i++) {
 			sql += '?,';
 
 			const uuidBuf = lUtils.uuidToBuffer(options.uuids[i]);
 
-			if (! uuidBuf) throw new Error('Invalid uuid: "' + options.uuids[i] + '"');
+			if (!uuidBuf) throw new Error('Invalid uuid: "' + options.uuids[i] + '"');
 
 			dbFields.push(uuidBuf);
 		}
@@ -95,7 +95,7 @@ async function _get(db, log, lUtils, options) {
 	} else if (Array.isArray(options.slugs)) {
 		sql += 'WHERE f.slug IN (';
 
-		for (let i = 0; i < options.slugs.length; i ++) {
+		for (let i = 0; i < options.slugs.length; i++) {
 			sql += '?,';
 		}
 
@@ -104,8 +104,8 @@ async function _get(db, log, lUtils, options) {
 
 		dbFields = options.slugs;
 	} else {
-		if (! options.filter) options.filter = {};
-		if (! options.order) options.order = {};
+		if (!options.filter) options.filter = {};
+		if (!options.order) options.order = {};
 
 		if (options.filter.operator !== 'or') {
 			options.filter.operator = 'and';
@@ -121,14 +121,14 @@ async function _get(db, log, lUtils, options) {
 			for (const name of Object.keys(options.filter.metadata)) {
 				let values = options.filter.metadata[name];
 
-				if (! (values instanceof Array)) {
+				if (!(values instanceof Array)) {
 					values = [values];
 				}
 
-				for (let i = 0; values[i] !== undefined; i ++) {
+				for (let i = 0; values[i] !== undefined; i++) {
 					const value = values[i];
 
-					counter ++;
+					counter++;
 					sql += '	JOIN larvitfiles_files_metadata fm' + counter;
 					sql += ' ON f.uuid = fm' + counter + '.fileUuid';
 
@@ -178,11 +178,11 @@ async function _get(db, log, lUtils, options) {
 			for (const name of Object.keys(options.filter.metadata)) {
 				let values = options.filter.metadata[name];
 
-				if (! (values instanceof Array)) {
+				if (!(values instanceof Array)) {
 					values = [values];
 				}
 
-				for (let i = 0; values[i] !== undefined; i ++) {
+				for (let i = 0; values[i] !== undefined; i++) {
 					const value = values[i];
 
 					if (value === true) {
@@ -219,13 +219,13 @@ async function _get(db, log, lUtils, options) {
 
 	const rows = await _runQuery(db, sql, dbFields);
 
-	if (! rows || rows.length === 0) return [];
+	if (!rows || rows.length === 0) return [];
 
 	const dbFiles = rows.map(r => {
 		return {
-			'uuid':     lUtils.formatUuid(r.uuid),
-			'slug':     r.slug,
-			'metadata': {}
+			uuid: lUtils.formatUuid(r.uuid),
+			slug: r.slug,
+			metadata: {}
 		};
 	});
 
@@ -233,7 +233,7 @@ async function _get(db, log, lUtils, options) {
 	const dbMetadataFields = dbFiles.map(f => lUtils.uuidToBuffer(f.uuid));
 	let metadataSql = 'SELECT fileUuid, name, value FROM larvitfiles_files_metadata WHERE fileUuid IN (';
 
-	for (let i = 0; i < dbFiles.length; i ++) {
+	for (let i = 0; i < dbFiles.length; i++) {
 		metadataSql += '?,';
 	}
 
@@ -242,7 +242,7 @@ async function _get(db, log, lUtils, options) {
 
 	const metadataRows = await _runQuery(db, metadataSql, dbMetadataFields);
 
-	for (let i = 0; metadataRows[i] !== undefined; i ++) {
+	for (let i = 0; metadataRows[i] !== undefined; i++) {
 		const row = metadataRows[i];
 
 		const file = dbFiles.find(f => f.uuid === lUtils.formatUuid(row.fileUuid));
@@ -274,38 +274,44 @@ class Files {
 	 * @param {string} [options.amsync_host=null] - Hostname used when syncing data
 	 * @param {string} [options.amsync_minPort=null] - Min. port in range used when syncing data
 	 * @param {string} [options.amsync_maxPort=null] - Max. port in range used when syncing data
+	 * @param {function} cb - Callback
 	 */
-	constructor(options) {
+	constructor(options, cb) {
 		const logPrefix = topLogPrefix + 'constructor() - ';
 
-		if (! options.db) throw new Error('Missing required option "db"');
-		if (! options.storagePath) throw new Error('Missing required option storage path');
+		// Make sure there always is a callback function to be called
+		if (!cb) {
+			cb = ()=>{};
+		}
 
-		if (! options.lUtils) {
+		if (!options.db) throw new Error('Missing required option "db"');
+		if (!options.storagePath) throw new Error('Missing required option storage path');
+
+		if (!options.lUtils) {
 			options.lUtils = new LUtils();
 		}
 
-		if (! options.log) options.log = new options.lUtils.Log('info');
+		if (!options.log) options.log = new options.lUtils.Log('info');
 
-		if (! options.exchangeName) {
+		if (!options.exchangeName) {
 			options.exchangeName = 'larvitfiles';
 		}
 
-		if (! options.prefix) {
+		if (!options.prefix) {
 			options.prefix	= '/dbfiles/';
 		}
 
-		if (! options.mode) {
+		if (!options.mode) {
 			options.log.info(logPrefix + 'No "mode" option given, defaulting to "noSync"');
 			options.mode = 'noSync';
-		} else if (['noSync', 'master', 'slave'].indexOf(options.mode) === - 1) {
+		} else if (['noSync', 'master', 'slave'].indexOf(options.mode) === -1) {
 			const err = new Error('Invalid "mode" option given: "' + options.mode + '"');
 
 			options.log.error(logPrefix + err.message);
 			throw err;
 		}
 
-		if (! options.intercom) {
+		if (!options.intercom) {
 			options.log.info(logPrefix + 'No "intercom" option given, defaulting to "loopback interface"');
 			options.intercom = new Intercom('loopback interface');
 		}
@@ -318,22 +324,22 @@ class Files {
 			if (err) {
 				this.log.error(topLogPrefix + 'Could not create folder: "' + options.storagePath + '" err: ' + err.message);
 
-				throw err;
+				return cb(err);
 			} else {
 				this.log.debug(topLogPrefix + 'Folder "' + options.storagePath + '" created if it did not already exist');
 			}
 
 			this.dataWriter = new DataWriter({
-				'storagePath':    this.storagePath,
-				'exchangeName':   this.exchangeName,
-				'intercom':       this.intercom,
-				'mode':           this.mode,
-				'log':            this.log,
-				'db':             this.db,
-				'amsync_host':    options.amsync_host    || null,
-				'amsync_minPort': options.amsync_minPort || null,
-				'amsync_maxPort': options.amsync_maxPort || null
-			});
+				storagePath: this.storagePath,
+				exchangeName: this.exchangeName,
+				intercom: this.intercom,
+				mode: this.mode,
+				log: this.log,
+				db: this.db,
+				amsync_host: options.amsync_host || null,
+				amsync_minPort: options.amsync_minPort || null,
+				amsync_maxPort: options.amsync_maxPort || null
+			}, cb);
 		});
 	};
 
@@ -343,11 +349,11 @@ class Files {
 	 * @returns {Promise} - Promise that resolves to the string representation of the uuid found otherwise null
 	 */
 	async uuidFromSlug(slug) {
-		if (! slug) throw new Error('Slug not set');
+		if (!slug) throw new Error('Slug not set');
 
 		const rows = await _runQuery(this.db, 'SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug]);
 
-		if (! rows || rows.length === 0) return null;
+		if (!rows || rows.length === 0) return null;
 
 		return this.lUtils.formatUuid(rows[0].uuid);
 	}
@@ -404,34 +410,44 @@ class Files {
 	 * @param {object} [file.metadata] - Metadata for file
 	 * @param {string[]} [file.metadata.key] - Key/value pairs of metadata. A key can have multiple values.
 	 * @param {Buffer} file.data - The buffered contents of the file
+	 * @param {boolean} [updateMatchingSlug] - If slug is already taken, update that file. Defaults to false
 	 * @returns {Promise} promise - Returns a promise that resolves to the file saved
 	 */
 	save(file) {
-		return new Promise((resolve, reject) => {
+		return new Promise(async (resolve, reject) => {
 			const logPrefix = topLogPrefix + 'save() - ';
 			const tasks = [];
 
 			let savedFile;
 
-			if (! file.slug) {
+			if (!file.slug) {
 				throw new Error('Slug is required to save file');
 			}
 
-			if (! file.uuid) {
-				file.uuid = uuid();
-				this.log.verbose(logPrefix + 'New file with slug "' + file.slug + '" was given uuid "' +  file.uuid + '"');
+			if (!file.uuid && file.updateMatchingSlug) {
+				const existingFile = await this.get({slug: file.slug});
+
+				if (existingFile) {
+					this.log.verbose(logPrefix + 'Updating file by matching slug: "' + file.slug + '", uuid: "' + file.uuid + '"');
+					file.uuid = existingFile.uuid;
+				}
 			}
 
-			tasks.push((cb) => {
-				const options = {'exchange': this.dataWriter.exchangeName};
+			if (!file.uuid) {
+				file.uuid = uuid();
+				this.log.verbose(logPrefix + 'New file with slug "' + file.slug + '" was given uuid "' + file.uuid + '"');
+			}
+
+			tasks.push(cb => {
+				const options = {exchange: this.dataWriter.exchangeName};
 				const message = {};
 
-				message.action      = 'save';
-				message.params      = {};
+				message.action = 'save';
+				message.params = {};
 				message.params.data = {
-					'uuid':     file.uuid,
-					'slug':     file.slug,
-					'metadata': file.metadata
+					uuid: file.uuid,
+					slug: file.slug,
+					metadata: file.metadata
 				};
 
 				this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
@@ -450,7 +466,7 @@ class Files {
 			});
 
 			tasks.push(cb => {
-				this.get({'uuid': file.uuid}).then(result => {
+				this.get({uuid: file.uuid}).then(result => {
 					savedFile = result;
 					cb();
 				})
@@ -477,9 +493,9 @@ class Files {
 	rm(uuid) {
 		return new Promise((resolve, reject) => {
 			const logPrefix = topLogPrefix + 'rm() - ';
-			const tasks     = [];
+			const tasks = [];
 
-			if (! uuid) {
+			if (!uuid) {
 				const err = new Error('uuid is not defined');
 
 				this.log.info(logPrefix + err.message);
@@ -488,12 +504,12 @@ class Files {
 			}
 
 			tasks.push(cb => {
-				const options = {'exchange': this.dataWriter.exchangeName};
+				const options = {exchange: this.dataWriter.exchangeName};
 				const message = {};
 
-				message.action      = 'rm';
-				message.params      = {};
-				message.params.data = {'uuid': uuid};
+				message.action = 'rm';
+				message.params = {};
+				message.params.data = {uuid};
 
 				this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
 					if (err) return cb(err);

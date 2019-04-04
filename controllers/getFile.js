@@ -4,7 +4,7 @@
 'use strict';
 
 const Lfs = require('larvitfs');
-const fs  = require('fs');
+const fs = require('fs');
 
 /**
  *
@@ -13,31 +13,32 @@ const fs  = require('fs');
  * @param {func} cb - callback
  */
 function run(req, res, cb) {
-	const lfs          = new Lfs({'log': req.log, 'fs': fs});
+	const lfs = new Lfs({log: req.log, fs: fs});
 	const notFoundPath = lfs.getPathSync('controllers/404.js');
-	const url          = require('url');
+	const url = require('url');
 
 	req.urlParsed = url.parse(req.url);
 
-	req.fileLib.get({
-		'slug': decodeURIComponent(req.urlParsed.pathname.substr(req.fileLib.prefix.length))
-	}).then(function (file) {
-		if (file.uuid === undefined) {
-			// 404!!!
-			require(notFoundPath).run(req, res, cb);
+	const slug = decodeURIComponent(req.urlParsed.pathname.substr(req.fileLib.prefix.length));
 
-			return;
-		}
+	req.fileLib.get({slug})
+		.then(function (file) {
+			if (file.uuid === undefined) {
+				// 404!!!
+				require(notFoundPath).run(req, res, cb);
 
-		const header = {};
+				return;
+			}
 
-		header['Content-Type'] = 'application/octet-stream';
-		header['Content-Disposition'] = 'attachment; filename="' + file.slug + '"';
-		res.writeHead(200, header);
-		res.end(file.data);
-		cb();
-	})
-		.catch(function (err) {
+			const header = {};
+
+			header['Content-Type'] = 'application/octet-stream';
+			header['Content-Disposition'] = 'attachment; filename="' + file.slug + '"';
+			res.writeHead(200, header);
+			res.end(file.data);
+			cb();
+		})
+		.catch(err => {
 			cb(err, req, res);
 		});
 }

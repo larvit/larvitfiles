@@ -1,15 +1,15 @@
 'use strict';
 
 const logPrefix = 'larvitfiles: ./dbmigration/2.js: ';
-const LUtils    = require('larvitutils');
-const async     = require('async');
-const fs        = require('fs');
+const LUtils = require('larvitutils');
+const async = require('async');
+const fs = require('fs');
 
 exports = module.exports = function (cb) {
-	const tasks  = [];
-	const that   = this;
-	const lUtils = new LUtils({'log': that.log});
-	const db     = that.options.dbDriver;
+	const tasks = [];
+	const that = this;
+	const lUtils = new LUtils({log: that.log});
+	const db = that.options.dbDriver;
 
 	let	files;
 
@@ -20,7 +20,7 @@ exports = module.exports = function (cb) {
 		throw err;
 	}
 
-	if (! fs.existsSync(that.options.storagePath)) {
+	if (!fs.existsSync(that.options.storagePath)) {
 		tasks.push(function (cb) {
 			that.log.info(logPrefix + 'storagePath "' + that.options.storagePath + '" does not exist, creating');
 			fs.mkdir(that.options.storagePath, cb);

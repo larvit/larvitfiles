@@ -1,21 +1,23 @@
 'use strict';
 
 const async = require('async');
-const fs    = require('fs');
+const fs = require('fs');
 
 exports.run = function (req, res, cb) {
+	console.log('Broken, needs to be updated');
+	process.exit(1);
 	const tasks = [];
-	const data  = {'global': res.globalData, 'prefix': req.fileLib.prefix};
+	const data = {global: res.globalData, prefix: req.fileLib.prefix};
 
 	let file;
 
 	data.global.menuControllerName = 'adminFiles';
-	data.global.errors             = [];
+	data.global.errors = [];
 
 	if (data.global.urlParsed.query.uuid !== undefined) {
 		tasks.push(function (cb) {
-			req.fileLib.file({'uuid': data.global.urlParsed.query.uuid}, function (err, fajl) {
-				file = fajl;
+			req.fileLib.file({uuid: data.global.urlParsed.query.uuid}, function (err, result) {
+				file = result;
 				cb(err);
 			});
 		});
@@ -24,13 +26,13 @@ exports.run = function (req, res, cb) {
 	if (data.global.formFields.save !== undefined) {
 		const newFileData = {};
 
-		newFileData.slug     = data.global.formFields.slug;
+		newFileData.slug = data.global.formFields.slug;
 		newFileData.metadata = {};
 
 		// Set metadata
-		for (let i = 0; data.global.formFields.metaDataName[i] !== undefined; i ++) {
+		for (let i = 0; data.global.formFields.metaDataName[i] !== undefined; i++) {
 			if (data.global.formFields.metaDataName[i] !== '' && data.global.formFields.metaDataValue[i] !== '') {
-				const name  = data.global.formFields.metaDataName[i];
+				const name = data.global.formFields.metaDataName[i];
 				const value = data.global.formFields.metaDataValue[i];
 
 				if (newFileData.metadata[name] === undefined) {
@@ -102,7 +104,7 @@ exports.run = function (req, res, cb) {
 					cb(err);
 				});
 			} else {
-				file.slug     = newFileData.slug;
+				file.slug = newFileData.slug;
 				file.metadata = newFileData.metadata;
 
 				if (newFileData.data) {
@@ -123,8 +125,8 @@ exports.run = function (req, res, cb) {
 			if (data.global.errors.length !== 0) {
 				// Do nothing
 			} else if (file.uuid !== undefined && data.global.urlParsed.query.uuid === undefined) {
-				req.session.data.nextCallData = {'global': {'messages': ['New file created']}};
-				res.statusCode                = 302;
+				req.session.data.nextCallData = {global: {messages: ['New file created']}};
+				res.statusCode = 302;
 				res.setHeader('Location', '/adminFileEdit?uuid=' + file.uuid);
 			} else {
 				data.global.messages = ['Saved'];
@@ -140,8 +142,8 @@ exports.run = function (req, res, cb) {
 			file.rm(function (err) {
 				if (err) return cb(err);
 
-				req.session.data.nextCallData = {'global': {'messages': ['Movie deleted']}};
-				res.statusCode                = 302;
+				req.session.data.nextCallData = {global: {messages: ['Movie deleted']}};
+				res.statusCode = 302;
 				res.setHeader('Location', '/adminFiles');
 				cb();
 			});
@@ -152,12 +154,12 @@ exports.run = function (req, res, cb) {
 	tasks.push(function (cb) {
 		if (file === undefined) return cb();
 
-		data.global.formFields.slug          = file.slug;
-		data.global.formFields.metaDataName  = [];
+		data.global.formFields.slug = file.slug;
+		data.global.formFields.metaDataName = [];
 		data.global.formFields.metaDataValue = [];
 
 		for (const key of Object.keys(file.metadata)) {
-			for (let i = 0; file.metadata[key][i] !== undefined; i ++) {
+			for (let i = 0; file.metadata[key][i] !== undefined; i++) {
 				data.global.formFields.metaDataName.push(key);
 				data.global.formFields.metaDataValue.push(file.metadata[key][i]);
 			}

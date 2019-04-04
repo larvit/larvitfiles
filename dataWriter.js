@@ -2,10 +2,10 @@
 
 const EventEmitter = require('events').EventEmitter;
 const topLogPrefix = 'larvitfiles: dataWriter.js: ';
-const DbMigration  = require('larvitdbmigration');
-const LUtils       = require('larvitutils');
-const amsync       = require('larvitamsync');
-const async        = require('async');
+const DbMigration = require('larvitdbmigration');
+const LUtils = require('larvitutils');
+const amsync = require('larvitamsync');
+const async = require('async');
 
 let isReady = false;
 let readyInProgress = false;
@@ -24,11 +24,11 @@ function DataWriter(options, cb) {
 		that[key] = options[key];
 	}
 
-	if (! that.log) {
+	if (!that.log) {
 		that.log = new (new LUtils()).Log();
 	}
 
-	that.lUtils  = new LUtils({'log': that.log});
+	that.lUtils = new LUtils({log: that.log});
 
 	that.listenToQueue(cb);
 }
@@ -37,14 +37,14 @@ DataWriter.prototype.emitter = emitter;
 
 DataWriter.prototype.listenToQueue = function listenToQueue(retries, cb) {
 	const logPrefix = topLogPrefix + 'listenToQueue() - ';
-	const that      = this;
-	const options   = {'exchange': that.exchangeName};
-	const tasks     = [];
+	const that = this;
+	const options = {exchange: that.exchangeName};
+	const tasks = [];
 
 	let listenMethod;
 
 	if (typeof retries === 'function') {
-		cb      = retries;
+		cb = retries;
 		retries = 0;
 	}
 
@@ -58,7 +58,7 @@ DataWriter.prototype.listenToQueue = function listenToQueue(retries, cb) {
 
 	tasks.push(function (cb) {
 		if (that.mode === 'master') {
-			listenMethod      = 'consume';
+			listenMethod = 'consume';
 			options.exclusive = true; // It is important no other client tries to sneak
 			// out messages from us, and we want "consume"
 			// since we want the queue to persist even if this
@@ -128,11 +128,11 @@ DataWriter.prototype.listenToQueue = function listenToQueue(retries, cb) {
 // This is ran before each incoming message on the queue is handeled
 DataWriter.prototype.ready = function ready(retries, cb) {
 	const logPrefix = topLogPrefix + 'ready() - ';
-	const that      = this;
-	const tasks     = [];
+	const that = this;
+	const tasks = [];
 
 	if (typeof retries === 'function') {
-		cb      = retries;
+		cb = retries;
 		retries = 0;
 	}
 
@@ -158,8 +158,8 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 		if (that.mode === 'slave') {
 			that.log.verbose(logPrefix + 'that.mode: "' + that.mode + '", so read');
 			new amsync.SyncClient({
-				'exchange': that.exchangeName + '_dataDump',
-				'intercom': that.intercom
+				exchange: that.exchangeName + '_dataDump',
+				intercom: that.intercom
 			}, cb);
 		} else {
 			cb();
@@ -172,13 +172,13 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 
 		let dbMigration;
 
-		options.dbType               = 'mariadb';
-		options.dbDriver             = that.db;
-		options.tableName            = 'larvitfiles_db_version';
+		options.dbType = 'mariadb';
+		options.dbDriver = that.db;
+		options.tableName = 'larvitfiles_db_version';
 		options.migrationScriptsPath = __dirname + '/dbmigration';
-		options.storagePath          = that.storagePath;
-		options.log                  = that.log;
-		dbMigration                  = new DbMigration(options);
+		options.storagePath = that.storagePath;
+		options.log = that.log;
+		dbMigration = new DbMigration(options);
 
 		dbMigration.run(function (err) {
 			if (err) {
@@ -205,9 +205,9 @@ DataWriter.prototype.ready = function ready(retries, cb) {
 
 DataWriter.prototype.rm = function rm(params, deliveryTag, msgUuid) {
 	const logPrefix = topLogPrefix + 'rm() - ';
-	const that      = this;
-	const options   = params.data;
-	const tasks     = [];
+	const that = this;
+	const options = params.data;
+	const tasks = [];
 
 	if (options.uuid === undefined) {
 		const err = new Error('No uuid set, can not remove file');
@@ -224,7 +224,7 @@ DataWriter.prototype.rm = function rm(params, deliveryTag, msgUuid) {
 	tasks.push(function (cb) {
 		const uuiBuffer = that.lUtils.uuidToBuffer(options.uuid);
 
-		if (! uuiBuffer) {
+		if (!uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid);
 
 			that.log.info(logPrefix + err.message);
@@ -238,7 +238,7 @@ DataWriter.prototype.rm = function rm(params, deliveryTag, msgUuid) {
 	tasks.push(function (cb) {
 		const uuiBuffer = that.lUtils.uuidToBuffer(options.uuid);
 
-		if (! uuiBuffer) {
+		if (!uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid);
 
 			that.log.info(logPrefix + err.message);
@@ -257,10 +257,10 @@ DataWriter.prototype.rm = function rm(params, deliveryTag, msgUuid) {
 DataWriter.prototype.runDumpServer = function runDumpServer(cb) {
 	const that = this;
 	const options = {
-		'exchange': that.exchangeName + '_dataDump',
-		'host':     that.amsync ? that.amsync.host : null,
-		'minPort':  that.amsync ? that.amsync.minPort : null,
-		'maxPort':  that.amsync ? that.amsync.maxPort : null
+		exchange: that.exchangeName + '_dataDump',
+		host: that.amsync ? that.amsync.host : null,
+		minPort: that.amsync ? that.amsync.minPort : null,
+		maxPort: that.amsync ? that.amsync.maxPort : null
 	};
 	const args = [];
 
@@ -286,21 +286,21 @@ DataWriter.prototype.runDumpServer = function runDumpServer(cb) {
 	args.push('larvitfiles_files_metadata');
 
 	options.dataDumpCmd = {
-		'command': 'mysqldump',
-		'args':    args
+		command: 'mysqldump',
+		args: args
 	};
 
 	options['Content-Type'] = 'application/sql';
-	options.intercom        = that.intercom;
+	options.intercom = that.intercom;
 
 	new amsync.SyncServer(options, cb);
 };
 
 DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 	const logPrefix = topLogPrefix + 'save() - ';
-	const that      = this;
-	const options   = params.data;
-	const tasks     = [];
+	const that = this;
+	const options = params.data;
+	const tasks = [];
 
 	if (options.slug === undefined) {
 		const err = new Error('Slug must be set to save to database');
@@ -341,7 +341,7 @@ DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 	tasks.push(function (cb) {
 		const uuiBuffer = that.lUtils.uuidToBuffer(options.uuid);
 
-		if (! uuiBuffer) {
+		if (!uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid);
 
 			that.log.info(logPrefix + err.message);
@@ -356,7 +356,7 @@ DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 	tasks.push(function (cb) {
 		const uuiBuffer = that.lUtils.uuidToBuffer(options.uuid);
 
-		if (! uuiBuffer) {
+		if (!uuiBuffer) {
 			const err = new Error('Not a valid uuid: ' + options.uuid);
 
 			that.log.info(logPrefix + err.message);
@@ -372,12 +372,16 @@ DataWriter.prototype.save = function save(params, deliveryTag, msgUuid) {
 		const dbFields = [];
 		let sql = 'INSERT INTO larvitfiles_files_metadata VALUES';
 
+		if (!options.metadata) {
+			options.metadata = {};
+		}
+
 		for (const name of Object.keys(options.metadata)) {
-			if (! (options.metadata[name] instanceof Array)) {
+			if (!(options.metadata[name] instanceof Array)) {
 				options.metadata[name] = [options.metadata[name]];
 			}
 
-			for (let i = 0; options.metadata[name][i] !== undefined; i ++) {
+			for (let i = 0; options.metadata[name][i] !== undefined; i++) {
 				const uuiBuffer = that.lUtils.uuidToBuffer(options.uuid);
 
 				if (uuiBuffer) {
