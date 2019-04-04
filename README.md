@@ -13,31 +13,29 @@ npm i larvitfiles;
 ### Load library
 
 ```javascript
-const	Files	= require('larvitfiles'),
-	db	= require('larvitdb'),
-	fs	= require('fs');
-
-let	files;
+const FileLib = require('larvitfiles');
+const db = require('larvitdb');
+const fs = require('fs');
 
 db.setup(conf); // Only needed once per script. See https://github.com/larvit/larvitdb for details
 
-files = new Files({
-	'db':	db,
-	'storagePath':	'/tmp/larvitfiles',
+const fileLib = new FileLib({
+	db: db,
+	storagePath: '/tmp/larvitfiles',
 
 	// All below settings are optional, and their default is whats shown here
-	'log':	new (new (require('larvitutils'))).Log(),
-	'mode':	'noSync',	// or 'slave' or 'master'
-	'intercom':	new (require('larvitamintercom'))('loopback interface'),
-	'exchangeName':	'larvitfiles',
-	'prefix':	'/dbfiles/',
-	'amsync_host':	null,
-	'amsync_minPort':	null,
-	'amzync_maxPort':	null
+	log: new (new (require('larvitutils'))).Log(),
+	mode: 'noSync',	// or 'slave' or 'master'
+	intercom: new (require('larvitamintercom'))('loopback interface'),
+	exchangeName: 'larvitfiles',
+	prefix: '/dbfiles/',
+	amsync_host: null,
+	amsync_minPort: null,
+	amsync_maxPort: null
 });
 ```
 
-### Add file from buffer
+### Add file from disk
 
 ```javascript
 fs.readFile('/some/file.txt', function (err, data) {
@@ -45,10 +43,10 @@ fs.readFile('/some/file.txt', function (err, data) {
 
 	if (err) throw err;
 
-	const file = await Files.save({
-		'slug':	'slug/foo/bar.txt',
-		'data':	data,
-		'metadata':	{'metadata1': 'metavalue1', 'metadata2': ['multiple', 'values']},
+	const file = await fileLib.save({
+		slug: 'slug/foo/bar.txt',
+		data: data,
+		metadata: {metadata1: 'metavalue1', metadata2: ['multiple', 'values']}, // optional, will erase previous metadata if left blank
 		//uuid: uuid() - optional
 	});
 
@@ -61,11 +59,11 @@ fs.readFile('/some/file.txt', function (err, data) {
 ### Get file from storage
 
 ```javascript
-file = await Files.get({'slug': 'slug/foo/bar.txt'});
+const file = await fileLib.get({slug: 'slug/foo/bar.txt'});
 
-// or 
+// or
 
-file = await Files.get({'uuid': 'uuid of file'});
+const file = await fileLib.get({uuid: 'uuid of file'});
 
 console.log('file saved with uuid: ' + file.uuid);
 console.log('metadata: ' + JSON.stringify(file.metadata));
@@ -76,7 +74,7 @@ console.log('slug: ' + file.slug);
 ### Remove a file from storage
 
 ```javascript
-Files.rm(await Files.uuidFromSlug('slog/foo/bar.txt'));
+fileLib.rm(await fileLib.uuidFromSlug('slog/foo/bar.txt'));
 console.log('File is now removed from storage');
 ```
 
@@ -85,8 +83,8 @@ console.log('File is now removed from storage');
 #### List all files
 
 ```javascript
-const files = await Files.list();
-console.log(result); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
+const files = await fileLib.list();
+console.log(result); // Array of objects with uuid, slugs and metadata, but NOT file data as values.
 ```
 
 #### Filter list based on metadata
@@ -106,8 +104,8 @@ const options = {
 	}
 };
 
-const files	= await Files.list(options);
-console.log(files); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
+const files	= await fileLib.list(options);
+console.log(files); // Array of objects with uuid, slugs and metadata, but NOT file data as values.
 ```
 
 And if several values should exist on a single metadata do this:
@@ -125,7 +123,7 @@ const options = {
 	}
 };
 
-const files	= await Files.list(options);
-console.log(files); // Array of objects with uuid, slugs, uuids and metadata, but NOT file data as values.
+const files	= await fileLib.list(options);
+console.log(files); // Array of objects with uuid, slugs and metadata, but NOT file data as values.
 });
 ```
