@@ -16,6 +16,7 @@ const fs = require('fs');
  * @param {object} db - The db instance to run the query on
  * @param {string} sql - The query to run
  * @param {object[]} dbFields - Parameters for the query
+ * @return {Promise} Promise
  */
 async function _runQuery(db, sql, dbFields) {
 	return new Promise((resolve, reject) => {
@@ -34,6 +35,7 @@ async function _runQuery(db, sql, dbFields) {
  *
  * @param {object} log - A logging instance
  * @param {string} filePath - Path to the file to read
+ * @return {Promise} Promise
  */
 async function _readFile(log, filePath) {
 	return new Promise((resolve, reject) => {
@@ -321,7 +323,7 @@ class Files {
 				this.log.debug(topLogPrefix + 'Folder "' + options.storagePath + '" created if it did not already exist');
 			}
 
-			this.dataWriter	= new DataWriter({
+			this.dataWriter = new DataWriter({
 				'storagePath':    this.storagePath,
 				'exchangeName':   this.exchangeName,
 				'intercom':       this.intercom,
@@ -520,4 +522,3 @@ class Files {
 }
 
 exports = module.exports = Files;
-
