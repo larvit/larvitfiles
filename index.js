@@ -77,6 +77,7 @@ async function _get(db, log, lUtils, options) {
 
 	if (!options) options = {};
 
+	// Fetch by uuids as first priority
 	if (Array.isArray(options.uuids)) {
 		sql += 'WHERE f.uuid IN (';
 
@@ -92,6 +93,8 @@ async function _get(db, log, lUtils, options) {
 
 		sql = sql.substr(0, sql.length - 1);
 		sql += ')';
+
+	// If no uuids are supplied, check for slugs
 	} else if (Array.isArray(options.slugs)) {
 		sql += 'WHERE f.slug IN (';
 
@@ -103,6 +106,8 @@ async function _get(db, log, lUtils, options) {
 		sql += ')';
 
 		dbFields = options.slugs;
+
+	// Either uuids or slugs are supplied, check other filters
 	} else {
 		if (!options.filter) options.filter = {};
 		if (!options.order) options.order = {};
@@ -494,6 +499,7 @@ class Files {
 		return new Promise((resolve, reject) => {
 			const logPrefix = topLogPrefix + 'rm() - ';
 			const tasks = [];
+			const dataWriter = this.dataWriter;
 
 			if (!uuid) {
 				const err = new Error('uuid is not defined');
@@ -504,16 +510,16 @@ class Files {
 			}
 
 			tasks.push(cb => {
-				const options = {exchange: this.dataWriter.exchangeName};
+				const options = {exchange: dataWriter.exchangeName};
 				const message = {};
 
 				message.action = 'rm';
 				message.params = {};
 				message.params.data = {uuid};
 
-				this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
+				dataWriter.intercom.send(message, options, (err, msgUuid) => {
 					if (err) return cb(err);
-					this.dataWriter.emitter.once(msgUuid, cb);
+					dataWriter.emitter.once(msgUuid, cb);
 				});
 			});
 
