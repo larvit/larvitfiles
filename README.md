@@ -26,13 +26,7 @@ const fileLib = new FileLib({
 
 	// All below settings are optional, and their default is whats shown here
 	log: new (new (require('larvitutils'))).Log(),
-	mode: 'noSync',	// or 'slave' or 'master'
-	intercom: new (require('larvitamintercom'))('loopback interface'),
-	exchangeName: 'larvitfiles',
-	prefix: '/dbfiles/',
-	amsync_host: null,
-	amsync_minPort: null,
-	amsync_maxPort: null
+	prefix: '/dbfiles/'
 });
 
 await fileLib.ready(); // Not needed to run actions, but no action will start until this is returning true
