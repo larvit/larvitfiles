@@ -1,12 +1,11 @@
 'use strict';
 
 const topLogPrefix = 'larvitfiles: ./index.js: ';
-const DataWriter = require(__dirname + '/dataWriter.js');
-const Intercom = require('larvitamintercom');
+const EventEmitter = require('events').EventEmitter;
+const DbMigration = require('larvitdbmigration');
 const LUtils = require('larvitutils');
 const path = require('path');
 const mkdirp = require('mkdirp');
-const async = require('async');
 const uuid = require('uuid/v4');
 const fs = require('fs');
 
@@ -33,11 +32,12 @@ async function _runQuery(db, sql, dbFields) {
 /**
  * A promise wrapper for fs.readFile, will resolve to the data the file
  *
+ * @param {object} fs - fs instance
  * @param {object} log - A logging instance
  * @param {string} filePath - Path to the file to read
  * @return {Promise} Promise
  */
-async function _readFile(log, filePath) {
+async function _readFile(fs, log, filePath) {
 	return new Promise((resolve, reject) => {
 		fs.readFile(filePath, (err, data) => {
 			if (err) {
@@ -267,28 +267,15 @@ class Files {
 
 	/**
 	 * Options for Files instance.
+	 *
 	 * @param {object} options - Files options
 	 * @param {object} options.db - A mysql2 compatible db instance
 	 * @param {string} options.fileStoragePath - Path to where files should be stored
 	 * @param {object} [options.lUtils] - Instance of larvitutils. Will be created if not set
 	 * @param {object} [options.log] - Instans of logger. Will default to larvitutils logger if not set
-	 * @param {string} [options.exchangeName=larvitfiles] - Name of exchange used when communicating over Rabbitmq.
 	 * @param {string} [options.prefix=/dbfiles/] - Prefix used to navigate to controller serving files
-	 * @param {string} [options.mode=noSync] - Listening mode of dataWriter. Can be noSync, master, slave
-	 * @param {Intercom} [options.intercom] - An instance of larvitamintercom. Will default to instance using "loopback interface"
-	 * @param {string} [options.amsync_host=null] - Hostname used when syncing data
-	 * @param {string} [options.amsync_minPort=null] - Min. port in range used when syncing data
-	 * @param {string} [options.amsync_maxPort=null] - Max. port in range used when syncing data
-	 * @param {function} cb - Callback
 	 */
-	constructor(options, cb) {
-		const logPrefix = topLogPrefix + 'constructor() - ';
-
-		// Make sure there always is a callback function to be called
-		if (!cb) {
-			cb = ()=>{};
-		}
-
+	constructor(options) {
 		if (!options.db) throw new Error('Missing required option "db"');
 		if (!options.storagePath) throw new Error('Missing required option storage path');
 
@@ -298,64 +285,91 @@ class Files {
 
 		if (!options.log) options.log = new options.lUtils.Log('info');
 
-		if (!options.exchangeName) {
-			options.exchangeName = 'larvitfiles';
-		}
-
 		if (!options.prefix) {
 			options.prefix	= '/dbfiles/';
-		}
-
-		if (!options.mode) {
-			options.log.info(logPrefix + 'No "mode" option given, defaulting to "noSync"');
-			options.mode = 'noSync';
-		} else if (['noSync', 'master', 'slave'].indexOf(options.mode) === -1) {
-			const err = new Error('Invalid "mode" option given: "' + options.mode + '"');
-
-			options.log.error(logPrefix + err.message);
-			throw err;
-		}
-
-		if (!options.intercom) {
-			options.log.info(logPrefix + 'No "intercom" option given, defaulting to "loopback interface"');
-			options.intercom = new Intercom('loopback interface');
 		}
 
 		for (const key of Object.keys(options)) {
 			this[key] = options[key];
 		}
 
-		mkdirp(options.storagePath, err => {
-			if (err) {
-				this.log.error(topLogPrefix + 'Could not create folder: "' + options.storagePath + '" err: ' + err.message);
-
-				return cb(err);
-			} else {
-				this.log.debug(topLogPrefix + 'Folder "' + options.storagePath + '" created if it did not already exist');
-			}
-
-			this.dataWriter = new DataWriter({
-				storagePath: this.storagePath,
-				exchangeName: this.exchangeName,
-				intercom: this.intercom,
-				mode: this.mode,
-				log: this.log,
-				db: this.db,
-				amsync_host: options.amsync_host || null,
-				amsync_minPort: options.amsync_minPort || null,
-				amsync_maxPort: options.amsync_maxPort || null
-			}, cb);
-		});
+		this.emitter = new EventEmitter();
+		this.ready();
 	};
 
 	/**
+	 * Checks if library is ready to start making actions
+	 *
+	 * @return {promise} resolves when done
+	 */
+	async ready() {
+		const logPrefix = topLogPrefix + 'ready() - ';
+
+		if (this.isReady === true) return;
+
+		if (this.readyInProgress === true) {
+			return await new Promise((resolve) => {
+				this.emitter.on('ready', resolve);
+			});
+		}
+
+		this.readyInProgress = true;
+
+		// Create storage path if it did not exist
+		await new Promise((resolve, reject) => {
+			mkdirp(this.storagePath, err => {
+				if (err) {
+					this.log.error(topLogPrefix + 'Could not create folder: "' + this.storagePath + '" err: ' + err.message);
+
+					return reject(err);
+				}
+
+				this.log.debug(topLogPrefix + 'Folder "' + this.storagePath + '" created if it did not already exist');
+				resolve();
+			});
+		});
+
+		// Migrate database
+		await new Promise((resolve, reject) => {
+			const options = {};
+
+			let dbMigration;
+
+			options.dbType = 'mariadb';
+			options.dbDriver = this.db;
+			options.tableName = 'larvitfiles_db_version';
+			options.migrationScriptsPath = __dirname + '/dbmigration';
+			options.storagePath = this.storagePath;
+			options.log = this.log;
+			dbMigration = new DbMigration(options);
+
+			dbMigration.run(err => {
+				if (err) {
+					this.log.error(logPrefix + 'Database error: ' + err.message);
+
+					return reject(err);
+				}
+
+				resolve();
+			});
+		});
+
+		this.isReady = true;
+		this.emitter.emit('ready');
+
+		return;
+	}
+
+	/**
 	 * Returns the uuid of a file with a certain slug
+	 *
 	 * @param {string} slug - The slug to identify the file by
 	 * @returns {Promise} - Promise that resolves to the string representation of the uuid found otherwise null
 	 */
 	async uuidFromSlug(slug) {
 		if (!slug) throw new Error('Slug not set');
 
+		await this.ready();
 		const rows = await _runQuery(this.db, 'SELECT uuid FROM larvitfiles_files WHERE slug = ?', [slug]);
 
 		if (!rows || rows.length === 0) return null;
@@ -365,6 +379,7 @@ class Files {
 
 	/**
 	* Returns a file based on a uuid or a slug
+	*
 	* @param {object} options - Options used to find the files
 	* @param {string} options.uuid - The uuid of the file to get
 	* @param {string} options.slug - The slug of the file to get. If uuid is supplied slug will be ignored.
@@ -380,17 +395,19 @@ class Files {
 		getOptions.includeMetadata = true;
 		getOptions.includeFileData = options.includeFileData === undefined ? true : options.includeFileData;
 
+		await this.ready();
 		const result = await _get(this.db, this.log, this.lUtils, getOptions);
 
 		if (result.length === 0) return null;
 
-		result[0].data = await _readFile(this.log, path.join(this.storagePath, result[0].uuid));
+		result[0].data = await _readFile(fs, this.log, path.join(this.storagePath, result[0].uuid));
 
 		return result[0];
 	}
 
 	/**
 	* Returns a list of files based on filter options
+	*
 	* @param {object} [options] - The options used to filter and order the file listing
 	* @param {object} [options.filter] - Filter options for when listing files
 	* @param {string} [options.filter.operator] - Operator for filter queries, can be "and" or "or", defaults to "and"
@@ -403,12 +420,15 @@ class Files {
 	* @param {Number} [options.limit] - The maximum amount of files returned, defaults to 100
 	* @returns {Promise} - Returns a promise that resolves to an array with file objects
 	*/
-	list(options) {
+	async list(options) {
+		await this.ready();
+
 		return _get(this.db, this.log, this.lUtils, options || {});
 	}
 
 	/**
 	 * Saves a file object in the database and writes its data to disk
+	 *
 	 * @param {object} file - File to save
 	 * @param {string} [file.uuid=uuid()] - A unique uuid used to identify the file. Will be generated if not set
 	 * @param {string} file.slug - A unique slug used to identify the file
@@ -418,76 +438,108 @@ class Files {
 	 * @param {boolean} [updateMatchingSlug] - If slug is already taken, update that file. Defaults to false
 	 * @returns {Promise} promise - Returns a promise that resolves to the file saved
 	 */
-	save(file) {
-		return new Promise(async (resolve, reject) => {
-			const logPrefix = topLogPrefix + 'save() - ';
-			const tasks = [];
+	async save(file) {
+		const logPrefix = topLogPrefix + 'save() - ';
 
-			let savedFile;
+		if (!file.slug) {
+			throw new Error('Slug is required to save file');
+		}
 
-			if (!file.slug) {
-				throw new Error('Slug is required to save file');
+		await this.ready();
+
+		// Update file by matching slug if no uuid is supplied and updateMatchingSlug is set to true
+		if (!file.uuid && file.updateMatchingSlug) {
+			const existingFile = await this.get({slug: file.slug});
+
+			if (existingFile) {
+				this.log.verbose(logPrefix + 'Updating file by matching slug: "' + file.slug + '", uuid: "' + file.uuid + '"');
+				file.uuid = existingFile.uuid;
 			}
 
-			if (!file.uuid && file.updateMatchingSlug) {
-				const existingFile = await this.get({slug: file.slug});
+		// If no uuid is supplied, check so the slug is not already used by another file in the db
+		} else if (!file.uuid) {
+			const existingFile = await this.get({slug: file.slug});
 
-				if (existingFile) {
-					this.log.verbose(logPrefix + 'Updating file by matching slug: "' + file.slug + '", uuid: "' + file.uuid + '"');
-					file.uuid = existingFile.uuid;
-				}
+			if (existingFile) {
+				const err = new Error('Slug "' + file.slug + '" is taken by another file');
+
+				this.log.verbose(logPrefix + err.message);
+
+				throw err;
 			}
 
-			if (!file.uuid) {
-				file.uuid = uuid();
-				this.log.verbose(logPrefix + 'New file with slug "' + file.slug + '" was given uuid "' + file.uuid + '"');
+		// If both uuid and slug is supplied, check so the slug is not used by another file in the database
+		} else if (file.uuid) {
+			const existingUuid = await this.uuidFromSlug(file.slug);
+
+			if (existingUuid && existingUuid !== file.uuid) {
+				const err = new Error('Slug "' + file.slug + '" is taken by another file');
+
+				this.log.verbose(logPrefix + err.message);
+
+				throw err;
+			}
+		}
+
+		if (!file.uuid) {
+			file.uuid = uuid();
+			this.log.verbose(logPrefix + 'New file with slug "' + file.slug + '" was given uuid "' + file.uuid + '"');
+		}
+
+		const fullPath = this.storagePath + '/' + file.uuid;
+		const uuidBuffer = this.lUtils.uuidToBuffer(file.uuid);
+
+		if (!uuidBuffer) {
+			const err = new Error('Not a valid uuid: ' + file.uuid);
+
+			this.log.info(logPrefix + err.message);
+
+			throw err;
+		}
+
+		// Insert into database table files
+		await _runQuery(this.db, 'INSERT INTO larvitfiles_files VALUES(?,?) ON DUPLICATE KEY UPDATE slug = VALUES(slug)', [uuidBuffer, file.slug]);
+
+		// Delete metadata
+		await _runQuery(this.db, 'DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?;', uuidBuffer);
+
+		// Insert metadata
+		const dbFields = [];
+		let sql = 'INSERT INTO larvitfiles_files_metadata VALUES';
+
+		if (!file.metadata) file.metadata = {};
+
+		for (const name of Object.keys(file.metadata)) {
+			if (!(file.metadata[name] instanceof Array)) {
+				file.metadata[name] = [file.metadata[name]];
 			}
 
-			tasks.push(cb => {
-				const options = {exchange: this.dataWriter.exchangeName};
-				const message = {};
+			for (let i = 0; file.metadata[name][i] !== undefined; i++) {
+				sql += '(?,?,?),';
+				dbFields.push(uuidBuffer);
+				dbFields.push(name);
+				dbFields.push(file.metadata[name][i]);
+			}
+		}
 
-				message.action = 'save';
-				message.params = {};
-				message.params.data = {
-					uuid: file.uuid,
-					slug: file.slug,
-					metadata: file.metadata
-				};
+		if (dbFields.length !== 0) {
+			sql = sql.substring(0, sql.length - 1) + ';';
+			await _runQuery(this.db, sql, dbFields);
+		}
 
-				this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
-					if (err) return cb(err);
-					this.dataWriter.emitter.once(msgUuid, cb);
-				});
-			});
-
-			tasks.push(cb => {
-				const fullPath = this.storagePath + '/' + file.uuid;
-
-				fs.writeFile(fullPath, file.data, err => {
-					if (err) this.log.warn(logPrefix + 'Could not write file: "' + fullPath + '", err: ' + err.message);
-					cb(err);
-				});
-			});
-
-			tasks.push(cb => {
-				this.get({uuid: file.uuid}).then(result => {
-					savedFile = result;
-					cb();
-				})
-					.catch(err => {
-						cb(err);
-					});
-			});
-
-			async.series(tasks, err => {
+		// Save file to disk
+		await new Promise(async (resolve, reject) => {
+			fs.writeFile(fullPath, file.data, err => {
 				if (err) {
-					reject(err);
-				} else {
-					resolve(savedFile);
+					this.log.warn(logPrefix + 'Could not write file: "' + fullPath + '", err: ' + err.message);
+
+					return reject(err);
 				}
+				resolve();
 			});
 		});
+
+		return this.get({uuid: file.uuid});
 	}
 
 	/**
@@ -495,49 +547,48 @@ class Files {
 	 * @param {string} uuid - uuid of file to remove
 	 * @returns {Promise} - A promise that resolves when the files is removed
 	 */
-	rm(uuid) {
-		return new Promise((resolve, reject) => {
-			const logPrefix = topLogPrefix + 'rm() - ';
-			const tasks = [];
-			const dataWriter = this.dataWriter;
+	async rm(uuid) {
+		const logPrefix = topLogPrefix + 'rm() - ';
 
-			if (!uuid) {
-				const err = new Error('uuid is not defined');
+		if (!uuid) {
+			const err = new Error('uuid is not defined');
 
-				this.log.info(logPrefix + err.message);
+			this.log.info(logPrefix + err.message);
 
-				return reject(err);
-			}
+			throw err;
+		}
 
-			tasks.push(cb => {
-				const options = {exchange: dataWriter.exchangeName};
-				const message = {};
+		const uuidBuffer = this.lUtils.uuidToBuffer(uuid);
 
-				message.action = 'rm';
-				message.params = {};
-				message.params.data = {uuid};
+		if (!uuidBuffer) {
+			const err = new Error('Not a valid uuid: "' + uuid + '"');
 
-				dataWriter.intercom.send(message, options, (err, msgUuid) => {
-					if (err) return cb(err);
-					dataWriter.emitter.once(msgUuid, cb);
-				});
-			});
+			this.log.info(logPrefix + err.message);
 
-			tasks.push(cb => {
-				const fullPath = this.storagePath + '/' + uuid;
+			throw err;
+		}
 
-				fs.unlink(fullPath, err => {
-					if (err) this.log.warn(logPrefix + 'Could not unlink file: "' + fullPath + '", err: ' + err.message);
-					cb(err);
-				});
-			});
+		// Remove from database
+		await _runQuery(this.db, 'DELETE FROM larvitfiles_files_metadata WHERE fileUuid = ?', uuidBuffer);
+		await _runQuery(this.db, 'DELETE FROM larvitfiles_files WHERE uuid = ?', uuidBuffer);
 
-			async.series(tasks, err => {
+		// Remove from disk
+		const fullPath = this.storagePath + '/' + uuid;
+
+		await new Promise((resolve, reject) => {
+			fs.unlink(fullPath, err => {
 				if (err) {
-					reject(err);
-				} else {
-					resolve();
+					if (err.code === 'ENOENT') {
+						this.log.verbose(logPrefix + 'No physical file found on disk for for file uuid: "' + uuid + '"');
+
+						return resolve();
+					}
+
+					this.log.warn(logPrefix + 'Could not unlink file: "' + fullPath + '", err: ' + err.message);
+
+					return reject(err);
 				}
+				resolve();
 			});
 		});
 	}

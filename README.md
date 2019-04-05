@@ -33,10 +33,9 @@ const fileLib = new FileLib({
 	amsync_host: null,
 	amsync_minPort: null,
 	amsync_maxPort: null
-}, err => {
-	// This is called when the initialization (db migration etc) is done
-	// If err is set, initialization failed
-};
+});
+
+await fileLib.ready(); // Not needed to run actions, but no action will start until this is returning true
 ```
 
 ### Add file from disk

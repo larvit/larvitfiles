@@ -7,7 +7,7 @@ const async = require('async');
 const LUtils = require('larvitutils');
 const http = require('http');
 const App = require('larvitbase');
-const log = new (new LUtils()).Log('warning');
+const log = new (new LUtils()).Log('none');
 const lUtils = new LUtils({log: log});
 const db = require('larvitdb');
 const fs = require('fs');
@@ -76,12 +76,8 @@ before(function (done) {
 
 	// Set lib
 	tasks.push(function (cb) {
-		fileLib = new FileLib({
-			mode: 'noSync',
-			log: log,
-			db: db,
-			storagePath: storagePath
-		}, cb);
+		fileLib = new FileLib({log, db, storagePath});
+		cb();
 	});
 
 	async.series(tasks, function (err) {
@@ -443,6 +439,20 @@ describe('Files', function () {
 		async.series(tasks, done);
 	});
 
+	it('Try to remove a file with invalid uuid', done => {
+		fileLib.rm('xxx')
+			.then(() => {
+				throw new Error('Should not resolve');
+			}).catch(err => {
+				console.log(err);
+				done();
+			});
+	});
+
+	it('Try to remove a file with uuid that does not exist', done => {
+		fileLib.rm('b1ff689d-be10-4e2a-8819-24feeb8ec9d5').then(done);
+	});
+
 	it('should rename a slug on an existing file', function (done) {
 		const tasks = [];
 
@@ -506,10 +516,10 @@ describe('Files', function () {
 		tasks.push(function (cb) {
 			file.slug = 'fippel.txt';
 
-			fileLib.save(file).then(() => {
-				throw new Error('This should not happen!');
-			})
-				.catch(err => {
+			fileLib.save(file)
+				.then(() => {
+					throw new Error('This should not happen!');
+				}).catch(err => {
 					assert.strictEqual(err.message, 'Slug "fippel.txt" is taken by another file');
 					cb();
 				});
