@@ -38,6 +38,8 @@ async function _runQuery(db, sql, dbFields) {
  * @return {Promise} Promise
  */
 async function _readFile(fs, log, filePath) {
+	const logPrefix = topLogPrefix;
+
 	return new Promise((resolve, reject) => {
 		fs.readFile(filePath, (err, data) => {
 			if (err) {
