@@ -55,9 +55,9 @@
 	</div>
 
 	<div class="row">
-		<button type="submit" name="save">Save</button>
+		<button type="submit" name="action" value="save">Save</button>
 		<% if (global.urlParsed.query.uuid) { %>
-			<button type="submit" name="delete" class="button left warning" value="true">Delete file</button>
+			<button type="submit" name="action" value="delete" class="button left warning">Delete file</button>
 		<% } %>
 	</div>
 </form>
