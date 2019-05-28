@@ -272,7 +272,7 @@ class Files {
 	 *
 	 * @param {object} options - Files options
 	 * @param {object} options.db - A mysql2 compatible db instance
-	 * @param {string} options.fileStoragePath - Path to where files should be stored
+	 * @param {string} options.storagePath - Path to where files should be stored
 	 * @param {object} [options.lUtils] - Instance of larvitutils. Will be created if not set
 	 * @param {object} [options.log] - Instans of logger. Will default to larvitutils logger if not set
 	 * @param {string} [options.prefix=/dbfiles/] - Prefix used to navigate to controller serving files
