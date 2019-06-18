@@ -1,12 +1,9 @@
 'use strict';
 
-const freeport = require('freeport');
 const FileLib = require(__dirname + '/../index.js');
 const assert = require('assert');
 const async = require('async');
 const LUtils = require('larvitutils');
-const http = require('http');
-const App = require('larvitbase');
 const log = new (new LUtils()).Log('none');
 const lUtils = new LUtils({log: log});
 const db = require('larvitdb');
@@ -357,63 +354,6 @@ describe('Files', function () {
 			done();
 		})
 			.catch(done);
-	});
-
-	it('Return octet stream on larvitbase controller', function (done) {
-		const tasks = [];
-
-		let fileData;
-		let port;
-
-		process.cwd(__dirname + '/..');
-
-		// Get free port
-		tasks.push(function (cb) {
-			freeport(function (err, tmpPort) {
-				port = tmpPort;
-				cb(err);
-			});
-		});
-
-		// Start server
-		tasks.push(function (cb) {
-			let app = new App({
-				log: log,
-				httpOptions: port,
-				middlewares: [
-					function (req, res, cb) {
-						req.fileLib = fileLib;
-						cb(null, req, res);
-					},
-					require(__dirname + '/../controllers/getFile.js')
-				]
-			});
-
-			app.start(cb);
-		});
-
-		// Get file content
-		tasks.push(function (cb) {
-			fs.readFile(__dirname + '/dummyFile.txt', function (err, data) {
-				fileData = data;
-				cb(err);
-			});
-		});
-
-		// Make request to the server
-		tasks.push(function (cb) {
-			const req = http.request({port: port, path: fileLib.prefix + 'slug/foo/bar.txt'}, function (res) {
-				assert.deepEqual(res.statusCode, 200);
-				res.on('data', function (chunk) {
-					assert.deepEqual(chunk, fileData);
-				});
-				res.on('end', cb);
-			});
-
-			req.end();
-		});
-
-		async.series(tasks, done);
 	});
 
 	it('should remove a file from storage', function (done) {
