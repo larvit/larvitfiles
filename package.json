@@ -21,7 +21,7 @@
   "homepage": "https://github.com/larvit/larvitfiles#readme",
   "dependencies": {
     "async": "2.6.3",
-    "larvitdbmigration": "4.0.3",
+    "larvitdbmigration": "5.0.1",
     "larvitfs": "2.3.1",
     "larvitutils": "2.3.0",
     "mkdirp": "0.5.1",
