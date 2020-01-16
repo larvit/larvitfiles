@@ -25,7 +25,7 @@
     "larvitfs": "2.3.1",
     "larvitutils": "2.3.3",
     "mkdirp": "0.5.1",
-    "uuid": "3.3.3"
+    "uuid": "3.4.0"
   },
   "devDependencies": {
     "coveralls": "3.0.9",
