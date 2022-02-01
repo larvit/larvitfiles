@@ -4,9 +4,7 @@ env:
   - CXX=g++-4.8
 
 node_js:
-  - 8
-  - 10
-  - 11
+  - 14
 
 notifications:
   email:
@@ -31,5 +29,3 @@ addons:
     - g++-4.8
 
 script: DBCONFFILE=db_travis.json ./node_modules/.bin/nyc --reporter=lcov npm test
-
-after_script: "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"

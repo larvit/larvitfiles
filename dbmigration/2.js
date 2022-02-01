@@ -1,38 +1,35 @@
 'use strict';
 
 const logPrefix = 'larvitfiles: ./dbmigration/2.js: ';
-const LUtils = require('larvitutils');
+const { Utils } = require('larvitutils');
 const async = require('async');
 const fs = require('fs');
 
-exports = module.exports = function (cb) {
+exports = module.exports = async function (options) {
 	const tasks = [];
-	const that = this;
-	const lUtils = new LUtils({log: that.log});
-	const db = that.options.dbDriver;
+	const { db, log, context } = options;
+	const lUtils = new Utils({log});
 
 	let	files;
 
-	if (that.options.storagePath === null) {
+	if (context.storagePath === null) {
 		const	err	= new Error('storagePath not set on larvitfiles');
 
-		that.log.warn(logPrefix + err.message);
+		log.warn(logPrefix + err.message);
 		throw err;
 	}
 
-	if (!fs.existsSync(that.options.storagePath)) {
+	if (!fs.existsSync(context.storagePath)) {
 		tasks.push(function (cb) {
-			that.log.info(logPrefix + 'storagePath "' + that.options.storagePath + '" does not exist, creating');
-			fs.mkdir(that.options.storagePath, cb);
+			log.info(logPrefix + 'storagePath "' + context.storagePath + '" does not exist, creating');
+			fs.mkdir(context.storagePath, cb);
 		});
 	}
 
 	// Get list of slugs and uuids
-	tasks.push(function (cb) {
-		db.query('SELECT uuid, slug FROM larvitfiles_files', function (err, rows) {
-			files = rows;
-			cb(err);
-		});
+	tasks.push(async function () {
+		const {rows} = await db.query('SELECT uuid, slug FROM larvitfiles_files');
+		files = rows;
 	});
 
 	// Write files to disk and save type in db
@@ -40,27 +37,24 @@ exports = module.exports = function (cb) {
 		const tasks = [];
 
 		for (const file of files) {
-			tasks.push(function (cb) {
-				db.query('SELECT data FROM larvitfiles_files WHERE uuid = ?', file.uuid, function (err, result) {
-					if (err) return cb(err);
+			tasks.push(async function () {
+				const {rows} = await db.query('SELECT data FROM larvitfiles_files WHERE uuid = ?', file.uuid);
+				if (rows.length === 0) {
+					log.warn(logPrefix + 'Could not find file with uuid "' + Utils.formatUuid(file.uuid) + '"');
 
-					if (result.length === 0) {
-						that.log.warn(logPrefix + 'Could not find file with uuid "' + Utils.formatUuid(file.uuid) + '"');
+					return;
+				}
 
-						return cb();
-					}
-
-					fs.writeFile(that.options.storagePath + '/' + lUtils.formatUuid(file.uuid), result[0].data, cb);
-				});
+				await fs.promises.writeFile(context.storagePath + '/' + lUtils.formatUuid(file.uuid), rows[0].data);
 			});
 		}
 
 		async.parallelLimit(tasks, 5, cb);
 	});
 
-	tasks.push(function (cb) {
-		db.query('ALTER TABLE larvitfiles_files DROP COLUMN data', cb);
+	tasks.push(async function () {
+		await db.query('ALTER TABLE larvitfiles_files DROP COLUMN data');
 	});
 
-	async.series(tasks, cb);
+	await async.series(tasks);
 };

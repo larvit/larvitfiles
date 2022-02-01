@@ -1,10 +1,13 @@
 {
   "name": "larvitfiles",
-  "version": "6.0.0",
+  "version": "7.0.0",
   "description": "Storage of files with an API and database to use in web environments",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "lint": "eslint *.js test/*.js",
+    "test:unit": "mocha --exit --bail -r ts-node/register 'test/**/*.js'",
+    "test:cov": "nyc --reporter=lcov --reporter=text-summary  mocha --exit --bail 'test/**/*.js'",
+    "test": "npm run lint && npm run test:cov"
   },
   "repository": {
     "type": "git",
@@ -20,21 +23,16 @@
   },
   "homepage": "https://github.com/larvit/larvitfiles#readme",
   "dependencies": {
-    "async": "2.6.3",
-    "larvitdbmigration": "4.0.3",
-    "larvitfs": "2.3.1",
-    "larvitutils": "2.3.3",
-    "mkdirp": "0.5.3",
-    "uuid": "3.4.0"
+    "async": "3.2.3",
+    "larvitdb": "3.2.0",
+    "larvitdbmigration": "6.1.0",
+    "larvitutils": "5.0.0",
+    "mkdirp": "1.0.4",
+    "uuid": "8.3.2"
   },
   "devDependencies": {
-    "coveralls": "3.0.11",
-    "eslint": "5.16.0",
-    "freeport": "1.0.5",
-    "larvitbase": "3.1.3",
-    "larvitdb": "2.1.2",
-    "mocha": "6.2.2",
-    "mocha-eslint": "5.0.0",
-    "nyc": "14.1.1"
+    "eslint": "8.8.0",
+    "mocha": "9.2.0",
+    "nyc": "15.1.0"
   }
 }

@@ -3,15 +3,17 @@
 const FileLib = require(__dirname + '/../index.js');
 const assert = require('assert');
 const async = require('async');
-const LUtils = require('larvitutils');
-const log = new (new LUtils()).Log('none');
-const lUtils = new LUtils({log: log});
-const db = require('larvitdb');
+const { Log, Utils } = require('larvitutils');
+const Db = require('larvitdb');
 const fs = require('fs');
+
+const log = new Log('error');
+const lUtils = new Utils({log: log});
 const tmpdir = require('os').tmpdir();
 const storagePath = tmpdir + '/larvitfiles';
 
 let fileLib;
+let db;
 
 before(function (done) {
 	const tasks = [];
@@ -55,26 +57,18 @@ before(function (done) {
 
 	tasks.push(function (cb) {
 		cfg.log = log;
-		db.setup(cfg, cb);
+		db = new Db(cfg);
+		cb();
 	});
 
-	// Check for empty db
-	tasks.push(function (cb) {
-		db.query('SHOW TABLES', function (err, rows) {
-			if (err) throw err;
-
-			if (rows.length) {
-				throw new Error('Database is not empty. To make a test, you must supply an empty database!');
-			}
-
-			cb();
-		});
+	tasks.push(async function () {
+		await db.removeAllTables();
 	});
 
 	// Set lib
-	tasks.push(function (cb) {
+	tasks.push(async function () {
 		fileLib = new FileLib({log, db, storagePath});
-		cb();
+		await fileLib.ready();
 	});
 
 	async.series(tasks, function (err) {
@@ -87,8 +81,8 @@ after(function (done) {
 	const tasks = [];
 
 	// Clear db
-	tasks.push(function (cb) {
-		db.removeAllTables(cb);
+	tasks.push(async function () {
+		await db.removeAllTables();
 	});
 
 	// Clear test files
@@ -151,6 +145,11 @@ describe('Files', function () {
 		});
 	});
 
+	it('Fetch from db on slug without file data', async function () {
+		const file = await fileLib.get({slug: 'slug/foo/bar.txt', includeFileData: false});
+		assert.strictEqual(file.data, undefined);
+	});
+
 	it('Write another to db', function (done) {
 		fileLib.save({
 			slug: 'boll.txt',
@@ -169,9 +168,23 @@ describe('Files', function () {
 			.catch(err => { done(err); });
 	});
 
+	it('Write a third one to db', async function () {
+		const file = await fileLib.save({
+			slug: 'korv.txt',
+			data: Buffer.from('korvtolv'),
+			metadata: {metadata1: 'metavalue3', other: 'value3'}
+		});
+		assert.strictEqual(file.uuid, lUtils.formatUuid(file.uuid));
+		assert.deepEqual(file.metadata.metadata1, ['metavalue3']);
+		assert.deepEqual(file.metadata.other, ['value3']);
+		assert.deepEqual(Object.keys(file.metadata).length, 2);
+		assert.deepEqual(file.slug, 'korv.txt');
+		assert.deepEqual(file.data, Buffer.from('korvtolv'));
+	});
+
 	it('List all files in storage', function (done) {
 		fileLib.list().then(result => {
-			assert.deepEqual(result.length,	2);
+			assert.deepEqual(result.length,	3);
 
 			for (const file of result) {
 				assert.notStrictEqual(file.uuid, undefined);
@@ -183,6 +196,36 @@ describe('Files', function () {
 			done();
 		})
 			.catch(err => { done(err); });
+	});
+
+	it('List all files in storage sorted by slug desc', async function () {
+		const result = await fileLib.list({ order: {column: 'slug', dir: 'desc'}});
+		assert.strictEqual(result.length, 3);
+		assert.strictEqual(result[0].slug, 'slug/foo/bar.txt');
+		assert.strictEqual(result[1].slug, 'korv.txt');
+		assert.strictEqual(result[2].slug, 'boll.txt');
+	});
+
+	it('List all files in storage sorted by metadata1 desc', async function () {
+		const result = await fileLib.list({ order: {column: 'metadata:metadata1', dir: 'desc'}});
+		assert.strictEqual(result.length, 3);
+		assert.strictEqual(result[0].metadata.metadata1[0], 'metavalue3');
+		assert.strictEqual(result[1].metadata.metadata1[0], 'metavalue2');
+		assert.strictEqual(result[2].metadata.metadata1[0], 'metavalue1');
+	});
+
+	it('List files in storage with limit 2', async function () {
+		const result = await fileLib.list({limit: 2});
+		assert.strictEqual(result.length, 2);
+		assert.strictEqual(result[0].slug, 'boll.txt');
+		assert.strictEqual(result[1].slug, 'korv.txt');
+	});
+
+	it('List files in storage with limit 2 and offset 1', async function () {
+		const result = await fileLib.list({limit: 2, offset: 1});
+		assert.strictEqual(result.length, 2);
+		assert.strictEqual(result[0].slug, 'korv.txt');
+		assert.strictEqual(result[1].slug, 'slug/foo/bar.txt');
 	});
 
 	it('Write yet another to db', function (done) {
@@ -295,7 +338,7 @@ describe('Files', function () {
 		};
 
 		fileLib.list(options).then(result => {
-			assert.strictEqual(result.length, 2);
+			assert.strictEqual(result.length, 3);
 
 			done();
 		})
@@ -356,6 +399,36 @@ describe('Files', function () {
 			.catch(done);
 	});
 
+	it('List files in storage filtered by existing metadata, multiple metadata and the or operator', async function () {
+		const options = {
+			filter: {
+				metadata: {
+					metadata1: true,
+					foo: true
+				},
+				operator: 'or'
+			}
+		};
+
+		const result = await fileLib.list(options);
+		assert.deepEqual(Object.keys(result).length, 4);
+	});
+
+	it('should throw an error when listing by more than 60 metadata filters', async function () {
+		const options = {
+			filter: {
+				metadata: {
+				}
+			}
+		};
+
+		for (let i = 0; i < 61; i++) {
+			options.filter.metadata[`metadata${i}`] = 'value';
+		}
+
+		await assert.rejects(async () => await fileLib.list(options), new Error('Can not select on more than a total of 60 metadata key value pairs due to database limitation in joins'));
+	});
+
 	it('should remove a file from storage', function (done) {
 		const tasks = [];
 
@@ -367,13 +440,9 @@ describe('Files', function () {
 				.catch(cb);
 		});
 
-		tasks.push(function (cb) {
-			db.query('SELECT * FROM larvitfiles_files WHERE slug = \'slug/foo/bar.txt\'', function (err, rows) {
-				if (err) throw err;
-
-				assert.strictEqual(rows.length, 0);
-				cb();
-			});
+		tasks.push(async function () {
+			const {rows} = await db.query('SELECT * FROM larvitfiles_files WHERE slug = \'slug/foo/bar.txt\'');
+			assert.strictEqual(rows.length, 0);
 		});
 
 		async.series(tasks, done);
@@ -383,8 +452,8 @@ describe('Files', function () {
 		fileLib.rm('xxx')
 			.then(() => {
 				throw new Error('Should not resolve');
+			// eslint-disable-next-line no-unused-vars
 			}).catch(err => {
-				console.log(err);
 				done();
 			});
 	});
@@ -466,5 +535,38 @@ describe('Files', function () {
 		});
 
 		async.series(tasks, done);
+	});
+
+	it('should throw an error when creating without db', async () => {
+		assert.throws(() => new FileLib({storagePath: './asdf'}), new Error('Missing required option "db"'));
+	});
+
+	it('should throw an error when creating without storagePath', async () => {
+		assert.throws(() => new FileLib({db}), new Error('Missing required option storage path'));
+	});
+
+	it('should be able to construct without log', async () => {
+		assert.doesNotThrow(() => new FileLib({db, storagePath}));
+	});
+
+	it('should handle multiple ready calls', async () => {
+		const fl = new FileLib({db, storagePath, log});
+		await Promise.all([fl.ready(), fl.ready()]);
+	});
+
+	it('should throw an error when calling uuidfromSlug with empty slug', async () => {
+		await assert.rejects(async () => await fileLib.uuidFromSlug(''), new Error('Slug not set'));
+	});
+
+	it('should throw an error when calling get with no uuid or slug', async () => {
+		await assert.rejects(async () => await fileLib.get({}), new Error('Need uuid or slug to be able to get file'));
+	});
+
+	it('should throw and error when trying to save without a slug', async function () {
+		await assert.rejects(async () => await fileLib.save({data: Buffer.from('buhu')}), new Error('Slug is required to save file'));
+	});
+
+	it('should throw and error when trying to remove a file empty uuid', async function () {
+		await assert.rejects(async () => await fileLib.rm(''), new Error('uuid is not defined'));
 	});
 });

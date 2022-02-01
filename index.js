@@ -2,11 +2,11 @@
 
 const topLogPrefix = 'larvitfiles: ./index.js: ';
 const EventEmitter = require('events').EventEmitter;
-const DbMigration = require('larvitdbmigration');
-const LUtils = require('larvitutils');
+const {DbMigration} = require('larvitdbmigration');
+const { Log, Utils } = require('larvitutils');
 const path = require('path');
 const mkdirp = require('mkdirp');
-const uuid = require('uuid/v4');
+const uuid = require('uuid');
 const fs = require('fs');
 
 /**
@@ -18,15 +18,8 @@ const fs = require('fs');
  * @return {Promise} Promise
  */
 async function _runQuery(db, sql, dbFields) {
-	return new Promise((resolve, reject) => {
-		db.query(sql, dbFields, (err, rows) => {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(rows);
-			}
-		});
-	});
+	const {rows} = await db.query(sql, dbFields);
+	return rows;
 };
 
 /**
@@ -57,7 +50,7 @@ async function _readFile(fs, log, filePath) {
  *
  * @param {object} db - A db instance
  * @param {object} log - A logging instance
- * @param {lUtils} lUtils - An instance of larvitutils
+ * @param {Utils} lUtils - An instance of larvitutils
  * @param {object} options - Options used to find the files
  * @param {string[]} options.uuids - An array of uuids of files to get
  * @param {string[]} options.slugs - An array of slugs of files to get
@@ -73,6 +66,7 @@ async function _readFile(fs, log, filePath) {
  * @returns {Promise} - A promise that resolves to an array of file objects
  */
 async function _get(db, log, lUtils, options) {
+	const logPrefix = topLogPrefix + '_get() - ';
 	let dbFields = [];
 	let sql = 'SELECT f.uuid, f.slug\nFROM larvitfiles_files f\n';
 	let sqlOrder;
@@ -273,7 +267,7 @@ class Files {
 	 * @param {object} options - Files options
 	 * @param {object} options.db - A mysql2 compatible db instance
 	 * @param {string} options.storagePath - Path to where files should be stored
-	 * @param {object} [options.lUtils] - Instance of larvitutils. Will be created if not set
+	 * @param {Utils} [options.lUtils] - Instance of larvitutils. Will be created if not set
 	 * @param {object} [options.log] - Instans of logger. Will default to larvitutils logger if not set
 	 * @param {string} [options.prefix=/dbfiles/] - Prefix used to navigate to controller serving files
 	 */
@@ -281,11 +275,11 @@ class Files {
 		if (!options.db) throw new Error('Missing required option "db"');
 		if (!options.storagePath) throw new Error('Missing required option storage path');
 
-		if (!options.lUtils) {
-			options.lUtils = new LUtils();
-		}
+		if (!options.log) options.log = new Log('info');
 
-		if (!options.log) options.log = new options.lUtils.Log('info');
+		if (!options.lUtils) {
+			options.lUtils = new Utils({log: options.log});
+		}
 
 		if (!options.prefix) {
 			options.prefix	= '/dbfiles/';
@@ -296,7 +290,6 @@ class Files {
 		}
 
 		this.emitter = new EventEmitter();
-		this.ready();
 	};
 
 	/**
@@ -318,43 +311,26 @@ class Files {
 		this.readyInProgress = true;
 
 		// Create storage path if it did not exist
-		await new Promise((resolve, reject) => {
-			mkdirp(this.storagePath, err => {
-				if (err) {
-					this.log.error(topLogPrefix + 'Could not create folder: "' + this.storagePath + '" err: ' + err.message);
-
-					return reject(err);
-				}
-
-				this.log.debug(topLogPrefix + 'Folder "' + this.storagePath + '" created if it did not already exist');
-				resolve();
-			});
-		});
+		try {
+			await mkdirp(this.storagePath);
+		} catch (err) {
+			this.log.error(logPrefix + 'Could not create folder: "' + this.storagePath + '" err: ' + err.message);
+			throw err;
+		}
+		this.log.debug(logPrefix + 'Folder "' + this.storagePath + '" created if it did not already exist');
 
 		// Migrate database
-		await new Promise((resolve, reject) => {
-			const options = {};
-
-			let dbMigration;
-
-			options.dbType = 'mariadb';
-			options.dbDriver = this.db;
-			options.tableName = 'larvitfiles_db_version';
-			options.migrationScriptsPath = __dirname + '/dbmigration';
-			options.storagePath = this.storagePath;
-			options.log = this.log;
-			dbMigration = new DbMigration(options);
-
-			dbMigration.run(err => {
-				if (err) {
-					this.log.error(logPrefix + 'Database error: ' + err.message);
-
-					return reject(err);
-				}
-
-				resolve();
-			});
-		});
+		const options = {};
+		options.dbType = 'mariadb';
+		options.dbDriver = this.db;
+		options.tableName = 'larvitfiles_db_version';
+		options.migrationScriptsPath = __dirname + '/dbmigration';
+		options.log = this.log;
+		options.context = {
+			storagePath: this.storagePath
+		};
+		const dbMigration = new DbMigration(options);
+		await dbMigration.run();
 
 		this.isReady = true;
 		this.emitter.emit('ready');
@@ -402,7 +378,9 @@ class Files {
 
 		if (result.length === 0) return null;
 
-		result[0].data = await _readFile(fs, this.log, path.join(this.storagePath, result[0].uuid));
+		if (getOptions.includeFileData) {
+			result[0].data = await _readFile(fs, this.log, path.join(this.storagePath, result[0].uuid));
+		}
 
 		return result[0];
 	}
@@ -484,7 +462,7 @@ class Files {
 		}
 
 		if (!file.uuid) {
-			file.uuid = uuid();
+			file.uuid = uuid.v4();
 			this.log.verbose(logPrefix + 'New file with slug "' + file.slug + '" was given uuid "' + file.uuid + '"');
 		}
 
