@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.org/larvit/larvitfiles.svg?branch=master)](https://travis-ci.org/larvit/larvitfiles) [![Dependencies](https://david-dm.org/larvit/larvitfiles.svg)](https://david-dm.org/larvit/larvitfiles.svg)
-[![Coverage Status](https://coveralls.io/repos/larvit/larvitfiles/badge.svg)](https://coveralls.io/github/larvit/larvitfiles)
+[![Build Status](https://github.com/larvit/larvitfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/larvit/larvitfiles/actions)
 
 # larvitfiles
 
