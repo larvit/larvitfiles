@@ -1,6 +1,6 @@
 {
   "name": "larvitfiles",
-  "version": "7.0.31",
+  "version": "7.0.32",
   "description": "Storage of files with an API and database to use in web environments",
   "main": "index.js",
   "scripts": {

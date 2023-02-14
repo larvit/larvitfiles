@@ -324,7 +324,7 @@ class Files {
 		options.dbType = 'mariadb';
 		options.dbDriver = this.db;
 		options.tableName = 'larvitfiles_db_version';
-		options.migrationScriptsPath = __dirname + '/dbmigration';
+		options.migrationScriptPath = __dirname + '/dbmigration';
 		options.log = this.log;
 		options.context = {
 			storagePath: this.storagePath
