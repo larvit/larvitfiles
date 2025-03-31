@@ -1,6 +1,6 @@
 {
   "name": "larvitfiles",
-  "version": "7.0.109",
+  "version": "7.0.110",
   "description": "Storage of files with an API and database to use in web environments",
   "main": "index.js",
   "scripts": {
@@ -25,8 +25,8 @@
   "dependencies": {
     "async": "3.2.6",
     "larvitdb": "3.2.117",
-    "larvitdbmigration": "7.0.155",
-    "larvitutils": "5.1.137",
+    "larvitdbmigration": "7.0.157",
+    "larvitutils": "5.1.138",
     "mkdirp": "2.1.6",
     "uuid": "11.1.0"
   },
